@@ -304,3 +304,27 @@ Notes:
 - Why: Ensure app is environment-aware and scalable across different deployments
 - Impact: Configuration is now ready for production with proper environment variable management
 - User manually updated `.env.local` with `VITE_API_URL=`
+
+### 2026-02-22 Step 21
+- Fixed SPA routing issue for Vercel deployment
+- Issue: Supabase magic link redirected to production URL, but Vercel returned 404 for `/app` route because SPA routes aren't real server paths
+- Change: Updated `vercel.json` to use `"rewrites"` instead of `"routes"` to send all requests to `/index.html` for client-side routing
+- Why: Enable proper Single Page Application routing where JavaScript handles route navigation
+- Impact: Direct links to app routes (like `/app` from Supabase redirects) will now load the app correctly
+- Committed and pushed configuration update to GitHub
+
+### 2026-02-22 Step 22
+- Fixed SPA rewrites destination path for Vercel
+- Issue: Rewrites were pointing to `/index.html` but with frontend root directory, built files are in `/dist/index.html`
+- Change: Updated rewrites destination from `/index.html` to `/dist/index.html`
+- Why: Correct the path to the actual built index.html file location
+- Impact: SPA routing should now work correctly, allowing `/app` and other routes to load without 404
+- Committed and pushed fix to GitHub
+
+### 2026-02-22 Step 23
+- Corrected SPA rewrites destination for frontend root setup
+- Issue: Previous `/dist/index.html` path was incorrect for Vercel frontend root configuration
+- Change: Simplified rewrites destination back to `/index.html` (no dist prefix needed)
+- Why: With root directory set to frontend in Vercel dashboard, `/index.html` correctly points to the built file
+- Impact: SPA routing should now work properly for `/app` and other client-side routes
+- Committed and pushed correction to GitHub

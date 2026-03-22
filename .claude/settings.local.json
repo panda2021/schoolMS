@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(npm --version)",
+      "Read(//Users/eyoel/vibecoding/schoolMS/frontend/$HOME/.nvm/**)",
+      "Read(//usr/local/bin/**)",
+      "Read(//opt/homebrew/Cellar/node/25.5.0/bin/**)",
+      "Read(//usr/local/**)",
+      "Bash(export PATH=\"/opt/homebrew/bin:$PATH\")",
+      "Bash(unset -f node npm nvm lazy_load_nvm)",
+      "Bash(export PATH=/opt/homebrew/bin:$PATH)",
+      "Bash(npx vite:*)",
+      "Bash(/opt/homebrew/bin/npx vite:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git add:*)",
+      "Bash(/opt/homebrew/bin/npx tsc:*)",
+      "Bash(git config:*)"
+    ]
+  }
+}
