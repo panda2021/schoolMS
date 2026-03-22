@@ -100,12 +100,137 @@ export default function Attendance() {
     setStatusMap(next)
   }
 
+  // Parent attendance view state
+  const [children, setChildren] = useState<{ id: string; name: string }[]>([])
+  const [selectedChild, setSelectedChild] = useState('')
+  const [attendanceHistory, setAttendanceHistory] = useState<{ date: string; status: string; class_name: string; notes: string | null }[]>([])
+  const [loadingHistory, setLoadingHistory] = useState(false)
+
+  // Load parent's children
+  useEffect(() => {
+    if (role !== 'parent') return
+    const loadChildren = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const { data: p } = await supabase.from('parents').select('id').eq('user_id', user.id).maybeSingle()
+      if (!p?.id) return
+      const { data: ps } = await supabase.from('parent_students').select('students(id, first_name, last_name)').eq('parent_id', p.id)
+      const kids = (ps ?? []).map((r: any) => r.students ? { id: r.students.id, name: `${r.students.first_name} ${r.students.last_name}` } : null).filter(Boolean) as { id: string; name: string }[]
+      setChildren(kids)
+      if (kids.length === 1) setSelectedChild(kids[0].id)
+    }
+    loadChildren()
+  }, [role])
+
+  // Load attendance history for selected child
+  useEffect(() => {
+    if (!selectedChild || role !== 'parent') return
+    const loadHistory = async () => {
+      setLoadingHistory(true)
+      const startOfMonth = new Date()
+      startOfMonth.setDate(1)
+      const { data } = await supabase
+        .from('attendance')
+        .select('date, status, notes, classes(name)')
+        .eq('student_id', selectedChild)
+        .gte('date', startOfMonth.toISOString().split('T')[0])
+        .order('date', { ascending: false })
+      setAttendanceHistory((data ?? []).map((a: any) => ({
+        date: a.date,
+        status: a.status,
+        class_name: a.classes?.name ?? '-',
+        notes: a.notes,
+      })))
+      setLoadingHistory(false)
+    }
+    loadHistory()
+  }, [selectedChild, role])
+
+  const attendanceSummary = () => {
+    const present = attendanceHistory.filter(a => a.status === 'present').length
+    const absent = attendanceHistory.filter(a => a.status === 'absent').length
+    const late = attendanceHistory.filter(a => a.status === 'late').length
+    return { present, absent, late, total: attendanceHistory.length }
+  }
+
+  const statusBadge = (status: string) => {
+    if (status === 'present') return <span className="badge badge-success">Present</span>
+    if (status === 'absent') return <span className="badge badge-danger">Absent</span>
+    if (status === 'late') return <span className="badge badge-warning">Late</span>
+    return <span className="badge">{status}</span>
+  }
+
   return (
     <div>
       <h2>Attendance</h2>
-      {role !== 'teacher' ? (
-        <p className="helper">Attendance is available to teachers only.</p>
-      ) : (
+
+      {/* Parent view */}
+      {role === 'parent' && (
+        <div className="card">
+          {children.length === 0 ? (
+            <p className="helper">No children linked to your account.</p>
+          ) : (
+            <>
+              {children.length > 1 && (
+                <div style={{ marginBottom: 12 }}>
+                  <label className="helper">Select Child</label>
+                  <select value={selectedChild} onChange={e => setSelectedChild(e.target.value)}>
+                    <option value="">Choose...</option>
+                    {children.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+              )}
+              {selectedChild && (
+                <>
+                  {(() => { const s = attendanceSummary(); return s.total > 0 ? (
+                    <div className="grid cols-3" style={{ gap: 8, marginBottom: 12 }}>
+                      <div className="card" style={{ textAlign: 'center', padding: 10 }}>
+                        <div style={{ fontSize: 20, fontWeight: 700, color: '#166534' }}>{s.present}</div>
+                        <div className="helper">Present</div>
+                      </div>
+                      <div className="card" style={{ textAlign: 'center', padding: 10 }}>
+                        <div style={{ fontSize: 20, fontWeight: 700, color: '#dc2626' }}>{s.absent}</div>
+                        <div className="helper">Absent</div>
+                      </div>
+                      <div className="card" style={{ textAlign: 'center', padding: 10 }}>
+                        <div style={{ fontSize: 20, fontWeight: 700, color: '#92400e' }}>{s.late}</div>
+                        <div className="helper">Late</div>
+                      </div>
+                    </div>
+                  ) : null })()}
+                  {loadingHistory ? (
+                    <div className="skeleton" style={{ height: 60, borderRadius: 8 }} />
+                  ) : attendanceHistory.length === 0 ? (
+                    <p className="helper">No attendance records this month.</p>
+                  ) : (
+                    <table>
+                      <thead><tr><th>Date</th><th>Status</th><th>Class</th><th>Notes</th></tr></thead>
+                      <tbody>
+                        {attendanceHistory.map(a => (
+                          <tr key={a.date + a.class_name}>
+                            <td>{new Date(a.date).toLocaleDateString()}</td>
+                            <td>{statusBadge(a.status)}</td>
+                            <td>{a.class_name}</td>
+                            <td>{a.notes || '-'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Admin/other non-teacher view */}
+      {role !== 'teacher' && role !== 'parent' && (
+        <p className="helper">Attendance marking is available to teachers. Parents can view attendance history above.</p>
+      )}
+
+      {/* Teacher view */}
+      {role === 'teacher' && (
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 12 }}>
           <label htmlFor="classSel" className="helper">Class</label>
           {loadingClasses ? (

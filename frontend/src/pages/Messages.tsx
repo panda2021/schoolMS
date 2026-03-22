@@ -96,7 +96,9 @@ export default function Messages() {
       if (!convoMap.has(key)) {
         const otherName = r === 'parent'
           ? (msg.teachers?.users?.full_name ?? 'Teacher')
-          : (msg.parents?.users?.full_name ?? 'Parent')
+          : r === 'school_admin'
+            ? `${msg.parents?.users?.full_name ?? 'Parent'} ↔ ${msg.teachers?.users?.full_name ?? 'Teacher'}`
+            : (msg.parents?.users?.full_name ?? 'Parent')
         convoMap.set(key, {
           parent_id: msg.parent_id,
           teacher_id: msg.teacher_id,
@@ -231,16 +233,7 @@ export default function Messages() {
     </div>
   )
 
-  if (role === 'school_admin') {
-    return (
-      <div className="card">
-        <h2 style={{ marginTop: 0 }}>Messages</h2>
-        <p className="helper">Messages are between parents and teachers. As admin, you can view all school messages in the database.</p>
-      </div>
-    )
-  }
-
-  if (role !== 'parent' && role !== 'teacher') {
+  if (role !== 'parent' && role !== 'teacher' && role !== 'school_admin') {
     return (
       <div className="card">
         <h2 style={{ marginTop: 0 }}>Messages</h2>
@@ -255,7 +248,7 @@ export default function Messages() {
       <div className="card" style={{ padding: 0, overflow: 'hidden', display: activeConvo ? undefined : 'block' }}>
         <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h3 style={{ margin: 0 }}>Conversations</h3>
-          {convoTargets.length > 0 && (
+          {convoTargets.length > 0 && role !== 'school_admin' && (
             <button className="btn btn-primary" style={{ padding: '6px 10px', fontSize: 13 }} onClick={() => setShowNewConvo(!showNewConvo)}>
               + New
             </button>
@@ -355,19 +348,26 @@ export default function Messages() {
             <div ref={bottomRef} />
           </div>
 
-          {/* Input */}
-          <div style={{ padding: '8px 16px', borderTop: '1px solid var(--border)', display: 'flex', gap: 8 }}>
-            <input
-              value={newMsg}
-              onChange={e => setNewMsg(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendMessage()}
-              placeholder="Type a message..."
-              style={{ flex: 1, padding: '8px 12px' }}
-            />
-            <button className="btn btn-primary" onClick={sendMessage} disabled={sending || !newMsg.trim()}>
-              {sending ? <LoadingSpinner size="sm" /> : 'Send'}
-            </button>
-          </div>
+          {/* Input (hidden for admin - read-only view) */}
+          {role !== 'school_admin' && (
+            <div style={{ padding: '8px 16px', borderTop: '1px solid var(--border)', display: 'flex', gap: 8 }}>
+              <input
+                value={newMsg}
+                onChange={e => setNewMsg(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendMessage()}
+                placeholder="Type a message..."
+                style={{ flex: 1, padding: '8px 12px' }}
+              />
+              <button className="btn btn-primary" onClick={sendMessage} disabled={sending || !newMsg.trim()}>
+                {sending ? <LoadingSpinner size="sm" /> : 'Send'}
+              </button>
+            </div>
+          )}
+          {role === 'school_admin' && (
+            <div style={{ padding: '8px 16px', borderTop: '1px solid var(--border)', textAlign: 'center' }}>
+              <span className="helper">Read-only view — admin cannot send messages</span>
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -46,6 +46,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       <NavLink to="/app/announcements" label="Announcements" onClick={closeMobile} />
       <NavLink to="/app/messages" label="Messages" onClick={closeMobile} />
       <NavLink to="/app/reports" label="Progress Reports" onClick={closeMobile} />
+      <NavLink to="/app/import" label="Bulk Import" onClick={closeMobile} />
       <NavLink to="/app/settings" label="Settings" onClick={closeMobile} />
     </>
   )

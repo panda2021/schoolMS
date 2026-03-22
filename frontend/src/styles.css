@@ -92,6 +92,26 @@ label { font-size: 14px; color: var(--muted); display:block; margin-bottom: 6px 
 .badge { display:inline-flex; align-items:center; gap:6px; padding:4px 8px; border-radius: 999px; font-size: 12px; border:1px solid var(--border); background: var(--panel) }
 .badge-success { color:#166534; background: #dcfce7; border-color: #bbf7d0 }
 .badge-warning { color:#92400e; background: #fef3c7; border-color: #fde68a }
+.badge-danger { color:#991b1b; background: #fef2f2; border-color: #fecaca }
+
+/* Dropzone */
+.dropzone { border: 2px dashed var(--border); border-radius: 14px; padding: 40px; text-align: center; cursor: pointer; transition: border-color 0.2s, background 0.2s }
+.dropzone:hover, .dropzone.dragover { border-color: var(--primary); background: rgba(37,99,235,0.04) }
+
+/* Tabs */
+.tab-bar { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 16px }
+.tab-btn { padding: 10px 16px; background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; color: var(--muted); font-weight: 600; font-size: 14px }
+.tab-btn.active { color: var(--primary); border-bottom-color: var(--primary) }
+.tab-btn:hover { color: var(--text) }
+
+/* Modal */
+.modal-overlay { position: fixed; inset: 0; z-index: 100; background: rgba(2,8,23,0.5); display: flex; align-items: center; justify-content: center }
+.modal-panel { width: 90%; max-width: 560px; max-height: 90vh; overflow-y: auto }
+.modal-panel.wide { max-width: 720px }
+.step-indicator { display: flex; gap: 8px; margin-bottom: 20px; justify-content: center }
+.step-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--border); transition: background 0.2s }
+.step-dot.active { background: var(--primary) }
+.step-dot.done { background: var(--accent) }
 .badge-info { color:#064e3b; background: #d1fae5; border-color: #a7f3d0 }
 
 .empty { text-align:center; color: var(--muted); padding: 32px; border:1px dashed var(--border); border-radius: 12px }

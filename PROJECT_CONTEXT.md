@@ -328,3 +328,33 @@ Notes:
 - Why: With root directory set to frontend in Vercel dashboard, `/index.html` correctly points to the built file
 - Impact: SPA routing should now work properly for `/app` and other client-side routes
 - Committed and pushed correction to GitHub
+
+### 2026-03-22 Step 24
+- Moved vercel.json into frontend/ directory (Vercel root dir is frontend/)
+- Fixed Vercel-GitHub integration reconnection
+- Created test user accounts (admin@admin.com, teacher@test.com, parent1@test.com, parent2@test.com) with password login
+- Seeded database with school, users, teachers, parents, students, classes, enrollments via SQL
+
+### 2026-03-22 Step 25 — Complete MVP Build
+- Built all remaining MVP features:
+  - **Admin CRUD**: Classes (create/edit/delete + teacher assignment), Students (create/edit/delete), Enrollment management (inline in Classes page)
+  - **Dashboard Upgrades**: Admin (stats, quick actions, teachers/parents tables, recent activity), Teacher (stats, my classes, attendance nudge), Parent (children cards, today's attendance, recent updates, announcements preview)
+  - **Announcements**: Create form (admin/teacher), feed with pagination, school-wide or class-scoped, soft-delete
+  - **Messages**: Two-panel parent-teacher chat, conversation list + thread, sender identification
+  - **Progress Reports**: Teacher creates with metrics (Reading/Writing/Math/Social Skills/Behavior), parent views with colored badges
+- Polish: Mobile hamburger nav, deleted_at filters across all queries, cols-4 grid class
+- RLS migration 0006: Fixed teachers SELECT policy to allow same-school reads
+- Migration 0007: Changed announcements.created_by FK to users(id) for admin posting
+- Migration 0008: Added sender_id to messages table
+
+### 2026-03-22 Step 26 — UX Improvements & Business Logic
+- **Schema enhancement** (migration 0009): Added gender, guardian_name, guardian_phone, emergency_contact, medical_notes columns to students table
+- **Enhanced Student Form**: Expanded from 3 fields to full form with Student Info section + Guardian & Emergency section. Click-to-expand detail rows in table.
+- **Parent-Student Linking**: Admin can link/unlink parents to students from Admin Dashboard with relation type (mother/father/guardian)
+- **Excel/CSV Bulk Import**: New BulkImport page at /app/import. Upload Excel/CSV for students or classes. Client-side parsing (xlsx/SheetJS), preview table, validation, batch import. Download template buttons. Auto-enrollment by class_name column.
+- **Quick Enroll Wizard**: Modal-based multi-step workflow — Student Info → Class Selection → Parent Link → Review & Confirm. Available from Admin Dashboard and Students page.
+- **Parent Attendance View**: Parents can now see attendance history for their children with summary stats (present/absent/late counts) and detailed table
+- **Admin Message View**: Admin can view all school messages in read-only mode (conversation list + thread, no send capability)
+- New reusable components: Modal.tsx, QuickEnrollWizard.tsx
+- New CSS: dropzone, tabs, modal overlay, step indicator
+- New dependency: xlsx (SheetJS) for Excel parsing
