@@ -18,6 +18,9 @@ export default function Attendance() {
   const [saving, setSaving] = useState(false)
   const [loadingClasses, setLoadingClasses] = useState(true)
   const [loadingStudents, setLoadingStudents] = useState(false)
+  const [attendanceTaken, setAttendanceTaken] = useState(false)
+  const [editMode, setEditMode] = useState(false)
+  const [takenAt, setTakenAt] = useState<string | null>(null)
   const [teacherId, setTeacherId] = useState<string>('')
   const [schoolId, setSchoolId] = useState<string>('')
   const { show } = useToast()
@@ -52,6 +55,10 @@ export default function Attendance() {
       if (!selectedClass) return
       setLoadingStudents(true)
       setStudentsError(null)
+      setAttendanceTaken(false)
+      setEditMode(false)
+      setTakenAt(null)
+      setStatusMap({})
       const { data: enrolls, error: enrollErr } = await supabase.from('enrollments').select('student_id').eq('class_id', selectedClass).is('deleted_at', null)
       if (enrollErr) {
         console.error(enrollErr)
@@ -61,19 +68,39 @@ export default function Attendance() {
         return
       }
       const ids = (enrolls ?? []).map((e) => e.student_id)
-      if (ids.length === 0) { setStudents([]); return }
+      if (ids.length === 0) { setStudents([]); setLoadingStudents(false); return }
       const { data: studs, error: studsErr } = await supabase.from('students').select('id, first_name, last_name').in('id', ids).is('deleted_at', null)
       if (studsErr) {
         console.error(studsErr)
         setStudentsError('Failed to load students.')
       }
       setStudents(studs ?? [])
+
+      // Check if attendance has already been taken for class+date
+      const { data: existing } = await supabase
+        .from('attendance')
+        .select('student_id, status, created_at')
+        .eq('class_id', selectedClass)
+        .eq('date', date)
+      if (existing && existing.length > 0) {
+        const m: Record<string, string> = {}
+        for (const a of existing) m[a.student_id] = a.status
+        setStatusMap(m)
+        setAttendanceTaken(true)
+        setEditMode(false)
+        setTakenAt(existing[0].created_at)
+      }
+
       setLoadingStudents(false)
     }
     loadStudents()
-  }, [selectedClass])
+  }, [selectedClass, date])
 
   const save = async () => {
+    if (attendanceTaken && !editMode) {
+      show('Click "Edit attendance" first to make changes.', 'error')
+      return
+    }
     setSaving(true)
     const rows = Object.entries(statusMap).map(([student_id, status]) => ({
       school_id: schoolId,
@@ -88,7 +115,9 @@ export default function Attendance() {
       if (error) {
         show(error.message, 'error')
       } else {
-        show('Attendance saved', 'success')
+        show(attendanceTaken ? 'Attendance updated' : 'Attendance saved', 'success')
+        setAttendanceTaken(true)
+        setEditMode(false)
       }
     }
     setSaving(false)
@@ -244,10 +273,24 @@ export default function Attendance() {
             </select>
           )}
           <label htmlFor="dateSel" className="helper">Date</label>
-          <input id="dateSel" type="date" aria-label="Select date" value={date} onChange={(e) => setDate(e.target.value)} />
-          <button className="btn btn-primary" onClick={save} disabled={!selectedClass || saving} aria-label="Save attendance" style={{ display:'inline-flex', alignItems:'center', gap:8, minWidth:96, justifyContent:'center' }}>
-            {saving ? (<><LoadingSpinner size="sm" /> {t('common.saving')}</>) : t('attendance.save')}
-          </button>
+          <input id="dateSel" type="date" aria-label="Select date" value={date} onChange={(e) => setDate(e.target.value)} max={new Date().toISOString().slice(0, 10)} />
+          {attendanceTaken && !editMode ? (
+            <button className="btn btn-secondary" onClick={() => setEditMode(true)} aria-label="Edit attendance">
+              {t('attendance.edit') || 'Edit attendance'}
+            </button>
+          ) : (
+            <button className="btn btn-primary" onClick={save} disabled={!selectedClass || saving} aria-label="Save attendance" style={{ display:'inline-flex', alignItems:'center', gap:8, minWidth:96, justifyContent:'center' }}>
+              {saving ? (<><LoadingSpinner size="sm" /> {t('common.saving')}</>) : (attendanceTaken ? (t('attendance.update') || 'Update') : t('attendance.save'))}
+            </button>
+          )}
+        </div>
+      )}
+
+      {role === 'teacher' && attendanceTaken && !editMode && selectedClass && (
+        <div className="card" style={{ background: '#fef3c7', border: '1px solid #fbbf24', padding: 10, marginBottom: 12 }}>
+          <strong>Attendance already taken</strong> for this class on {new Date(date).toLocaleDateString()}
+          {takenAt ? <span className="helper"> (recorded {new Date(takenAt).toLocaleString()})</span> : null}.
+          Click <em>Edit attendance</em> to make corrections.
         </div>
       )}
 
@@ -294,6 +337,7 @@ export default function Attendance() {
                       name={`st-${s.id}`}
                       aria-label={`${s.first_name} ${s.last_name} ${st}`}
                       checked={statusMap[s.id] === st}
+                      disabled={attendanceTaken && !editMode}
                       onChange={() => setStatusMap(prev => ({ ...prev, [s.id]: st }))}
                     />
                   </td>

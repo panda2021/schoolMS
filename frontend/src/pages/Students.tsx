@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabaseClient'
 import { useToast } from '@/ui/components/toast/ToastProvider'
 import { LoadingSpinner } from '@/ui/components/LoadingSpinner'
 import { useLanguage } from '@/i18n/LanguageProvider'
+import { validateDob } from '@/lib/validate'
 
 interface StudentRow {
   id: string
@@ -55,6 +56,9 @@ export default function Students() {
   // Detail expand
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
+  // Search filter
+  const [searchQuery, setSearchQuery] = useState('')
+
   const resetCreateForm = () => {
     setFormFirst(''); setFormLast(''); setFormDob(''); setFormGender('')
     setFormGuardianName(''); setFormGuardianPhone(''); setFormEmergency(''); setFormMedical('')
@@ -76,11 +80,43 @@ export default function Students() {
       setAvailableClasses(cls ?? [])
     }
 
-    const { data } = await supabase
+    // Teachers see only students enrolled in their classes (own classes + subjects they teach)
+    let teacherStudentIds: string[] | null = null
+    if (r === 'teacher') {
+      const { data: tch } = await supabase.from('teachers').select('id').eq('user_id', user.id).maybeSingle()
+      if (tch?.id) {
+        const { data: ownClasses } = await supabase.from('classes').select('id').eq('teacher_id', tch.id).is('deleted_at', null)
+        const { data: subjectClasses } = await supabase.from('class_subject_teachers').select('class_id').eq('teacher_id', tch.id)
+        const classIds = [
+          ...(ownClasses ?? []).map(c => c.id),
+          ...(subjectClasses ?? []).map(c => c.class_id),
+        ]
+        const uniqueClassIds = [...new Set(classIds)]
+        if (uniqueClassIds.length === 0) { setStudents([]); return }
+        const { data: enrolls } = await supabase
+          .from('enrollments')
+          .select('student_id')
+          .in('class_id', uniqueClassIds)
+          .is('deleted_at', null)
+        teacherStudentIds = [...new Set((enrolls ?? []).map(e => e.student_id))]
+        if (teacherStudentIds.length === 0) { setStudents([]); return }
+      } else {
+        setStudents([])
+        return
+      }
+    }
+
+    let qb = supabase
       .from('students')
       .select('id, first_name, last_name, date_of_birth, gender, guardian_name, guardian_phone, emergency_contact, medical_notes, enrollments(classes(name))')
       .is('deleted_at', null)
       .order('first_name')
+
+    if (teacherStudentIds) {
+      qb = qb.in('id', teacherStudentIds)
+    }
+
+    const { data } = await qb
 
     setStudents((data ?? []).map((s: any) => ({
       id: s.id,
@@ -96,6 +132,18 @@ export default function Students() {
     })))
   }
 
+  const filteredStudents = searchQuery.trim()
+    ? students.filter(s => {
+        const q = searchQuery.trim().toLowerCase()
+        return (
+          (`${s.first_name} ${s.last_name}`.toLowerCase().includes(q)) ||
+          (s.guardian_name ?? '').toLowerCase().includes(q) ||
+          (s.guardian_phone ?? '').toLowerCase().includes(q) ||
+          s.classes.some(c => c.toLowerCase().includes(q))
+        )
+      })
+    : students
+
   useEffect(() => {
     const init = async () => {
       setLoading(true)
@@ -107,6 +155,8 @@ export default function Students() {
 
   const handleCreate = async () => {
     if (!formFirst.trim() || !formLast.trim() || !schoolId) return
+    const dobCheck = validateDob(formDob)
+    if (!dobCheck.ok) { show(dobCheck.error!, 'error'); return }
     setSaving(true)
     const { data: student, error } = await supabase.from('students').insert({
       school_id: schoolId,
@@ -140,6 +190,8 @@ export default function Students() {
   }
 
   const handleEdit = async (id: string) => {
+    const dobCheck = validateDob(editDob)
+    if (!dobCheck.ok) { show(dobCheck.error!, 'error'); return }
     setSaving(true)
     const { error } = await supabase.from('students').update({
       first_name: editFirst.trim(),
@@ -200,6 +252,17 @@ export default function Students() {
           )}
         </div>
 
+        <div style={{ marginBottom: 12 }}>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Search by name, guardian, phone, or class…"
+            style={{ width: '100%', padding: '8px 12px' }}
+            aria-label="Search students"
+          />
+        </div>
+
         {/* Create form */}
         {showCreate && role === 'school_admin' && (
           <div className="card" style={{ marginBottom: 16, background: 'var(--bg)' }}>
@@ -217,7 +280,10 @@ export default function Students() {
               </div>
               <div>
                 <label className="helper">{t('students.dob')}</label>
-                <input type="date" value={formDob} onChange={e => setFormDob(e.target.value)} />
+                <input type="date" value={formDob} onChange={e => setFormDob(e.target.value)} max={new Date().toISOString().slice(0, 10)} />
+                {formDob && !validateDob(formDob).ok && (
+                  <small style={{ color: '#dc2626' }}>{validateDob(formDob).error}</small>
+                )}
               </div>
               <div>
                 <label className="helper">{t('students.gender')}</label>
@@ -271,6 +337,8 @@ export default function Students() {
 
         {students.length === 0 ? (
           <div className="empty">{t('students.noStudents')}</div>
+        ) : filteredStudents.length === 0 ? (
+          <div className="empty">No students match "{searchQuery}".</div>
         ) : (
           <table>
             <thead>
@@ -283,7 +351,7 @@ export default function Students() {
               </tr>
             </thead>
             <tbody>
-              {students.map(s => (
+              {filteredStudents.map(s => (
                 editId === s.id && role === 'school_admin' ? (
                   <tr key={s.id}>
                     <td colSpan={role === 'school_admin' ? 5 : 4}>
@@ -300,7 +368,10 @@ export default function Students() {
                           </div>
                           <div>
                             <label className="helper">{t('students.dob')}</label>
-                            <input type="date" value={editDob} onChange={e => setEditDob(e.target.value)} style={{ padding: '6px 8px' }} />
+                            <input type="date" value={editDob} onChange={e => setEditDob(e.target.value)} style={{ padding: '6px 8px' }} max={new Date().toISOString().slice(0, 10)} />
+                            {editDob && !validateDob(editDob).ok && (
+                              <small style={{ color: '#dc2626' }}>{validateDob(editDob).error}</small>
+                            )}
                           </div>
                           <div>
                             <label className="helper">{t('students.gender')}</label>

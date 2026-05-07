@@ -22,14 +22,28 @@ export function ParentMultiSelect({ schoolId, selectedParentIds, onChange }: Par
       setLoading(true)
       const { data } = await supabase
         .from('parents')
-        .select('id, users(full_name)')
+        .select('id, user_id, users(full_name, email), parent_students(students(first_name, last_name))')
         .eq('school_id', schoolId)
         .is('deleted_at', null)
 
-      const opts: ParentOption[] = (data ?? []).map((p: any) => ({
-        id: p.id,
-        name: p.users?.full_name ?? 'Unknown Parent',
-      }))
+      const opts: ParentOption[] = (data ?? []).map((p: any) => {
+        const fullName = p.users?.full_name?.trim()
+        const email = p.users?.email?.trim()
+        const children: string[] = (p.parent_students ?? [])
+          .map((ps: any) => ps.students ? `${ps.students.first_name} ${ps.students.last_name}` : '')
+          .filter(Boolean)
+        let label: string
+        if (fullName) {
+          label = children.length ? `${fullName} (${children.join(', ')})` : fullName
+        } else if (email) {
+          label = children.length ? `${email} (${children.join(', ')})` : email
+        } else if (children.length) {
+          label = `Parent of ${children.join(', ')}`
+        } else {
+          label = 'Unnamed parent'
+        }
+        return { id: p.id, name: label }
+      })
       opts.sort((a, b) => a.name.localeCompare(b.name))
       setParents(opts)
       setLoading(false)

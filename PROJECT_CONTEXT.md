@@ -448,6 +448,39 @@ Notes:
 - **Search Page**: Role-based search — Teacher: students, Admin: students/teachers, Super Admin: schools/admins/teachers/parents/students
 - **RLS Verification**: All policies verified across 4 roles, documented acceptable MVP gap in media_assets
 
+### 2026-05-06 Step 31 — QA Sweep + Helpdesk + Admin Teacher Mgmt
+
+Driven by QA tester feedback. All bug fixes and the new helpdesk are bundled in migrations 0017–0023.
+
+**Bug fixes**
+- **0017** — Fix `42P17 infinite recursion` on announcements. The `announcements` SELECT policy did EXISTS on `announcement_recipients` while that table's policy did EXISTS on announcements. Wrapped both checks in `SECURITY DEFINER` helpers (`parent_can_see_announcement`, `can_view_recipient_row`) so RLS isn't re-evaluated inside the subqueries.
+- **0018** — 403 on parent file attach in chat. Added storage.objects INSERT policy permitting parents to upload to `{schoolId}/messages/%` and `{schoolId}/helpdesk/%`, plus parent INSERT on `media_assets` for messages they participate in.
+- **0019** — Tightened `daily_updates` SELECT for parents: only updates for classes where their child is enrolled. 0014 had broadened it to "same school".
+- **0020 / 0022** — `ensure_user_profile()` RPC: provisions `public.users` row on first magic-link login. 0022 adds `pending_invitations` so admin-driven teacher invites materialize correctly when the invitee signs in.
+- **0021** — Teachers can now insert/update `assessment_types` (previously admin-only), so they can define their own quizzes/midterms when no admin has set them up.
+- **0023** — Helpdesk tables (`helpdesk_tickets`, `helpdesk_messages`) + `media_assets.helpdesk_message_id`.
+
+**Frontend changes**
+- `lib/validate.ts` — shared DOB and phone validators (1-22 yrs old, not future).
+- `Students.tsx` — DOB inline error + `max=today`. Added top search box (folded Search functionality in). Teacher view filtered to only their classes' enrolled students.
+- `QuickEnrollWizard.tsx` — DOB validation in step 0 (prevents Next).
+- `AppShell.tsx` — Nav gated by role:
+  - parents: Dashboard, Updates, Announcements, Messages, Reports, Helpdesk, Settings (no Classes/Students/Bulk Import/Grades/Search/Attendance).
+  - teachers: + Classes, Students (own), Attendance, Grades.
+  - admins: + Bulk Import, Report Cards, Teachers (new), Helpdesk.
+  - super_admin: Overview, Helpdesk, Search, Settings.
+- `Attendance.tsx` — Detects existing attendance for class+date and flips to read-only with "Edit attendance" button. Save becomes Update in edit mode.
+- `Messages.tsx` — Paperclip icon next to Send. File staged in composer; sent in one action with the message.
+- `ParentMultiSelect.tsx` — Falls back from full_name → email → "Parent of [child]" → "Unnamed parent" so admin no longer sees "Unknown parent" rows.
+- `RoleRedirect.tsx` — Calls `ensure_user_profile()` when no profile exists; magic-link signups land on parent dashboard with role=parent.
+- `Grades.tsx` — Inline "+ New assessment / assignment" form. Teachers can self-serve.
+- `Teachers.tsx` (new) — Admin invites teachers by email + name; magic link sent. On first login, `ensure_user_profile()` consumes the pending invitation and creates teacher record. Deactivate / reactivate.
+- `Helpdesk.tsx` (new) — Tickets between any user and super_admin. Predefined category dropdown (12 categories) limits dumb questions. Required privacy notice + checkbox before submit ("conversations reviewed only by Abogida team for QA"). File attachments via paperclip. Super_admin sees all tickets across schools and can update ticket status.
+
+**Password handling clarification**: passwords are stored in `auth.users.encrypted_password` by Supabase Auth using bcrypt (`gen_salt('bf')`). The app NEVER touches the public schema for password storage. No custom encryption needed.
+
+**End-to-end test script**: `scripts/test_e2e.sh` runs through CRUD on every entity and reports pass/fail per check.
+
 ### 2026-04-14 Step 30 — Grading System & Report Cards
 **New tables (migration 0015)**:
 - `subjects`: school-level subject definitions with name, name_am, grade_levels[], is_default

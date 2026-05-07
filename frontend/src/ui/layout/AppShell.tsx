@@ -50,31 +50,46 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const closeMobile = () => setMobileOpen(false)
 
   const isSuperAdmin = userRole === 'super_admin'
+  const isAdmin = userRole === 'school_admin'
+  const isTeacher = userRole === 'teacher'
+  const isParent = userRole === 'parent'
 
   const navItems = isSuperAdmin ? (
     <>
       <NavLink to="/app/super" label={t('nav.overview')} onClick={closeMobile} />
+      <NavLink to="/app/helpdesk" label={t('nav.helpdesk')} onClick={closeMobile} />
       <NavLink to="/app/search" label={t('nav.search')} onClick={closeMobile} />
       <NavLink to="/app/settings" label={t('nav.settings')} onClick={closeMobile} />
     </>
   ) : (
     <>
       <NavLink to="/app" label={t('nav.dashboard')} onClick={closeMobile} />
-      <NavLink to="/app/classes" label={t('nav.classes')} onClick={closeMobile} />
-      <NavLink to="/app/students" label={t('nav.students')} onClick={closeMobile} />
-      <NavLink to="/app/attendance" label={t('nav.attendance')} onClick={closeMobile} />
+      {(isAdmin || isTeacher) && (
+        <NavLink to="/app/classes" label={t('nav.classes')} onClick={closeMobile} />
+      )}
+      {(isAdmin || isTeacher) && (
+        <NavLink to="/app/students" label={t('nav.students')} onClick={closeMobile} />
+      )}
+      {(isAdmin || isTeacher) && (
+        <NavLink to="/app/attendance" label={t('nav.attendance')} onClick={closeMobile} />
+      )}
       <NavLink to="/app/updates" label={t('nav.updates')} onClick={closeMobile} />
       <NavLink to="/app/announcements" label={t('nav.announcements')} onClick={closeMobile} />
       <NavLink to="/app/messages" label={t('nav.messages')} onClick={closeMobile} />
       <NavLink to="/app/reports" label={t('nav.reports')} onClick={closeMobile} />
-      {(userRole === 'teacher' || userRole === 'school_admin') && (
+      {(isTeacher || isAdmin) && (
         <NavLink to="/app/grades" label={t('nav.grades')} onClick={closeMobile} />
       )}
-      {userRole === 'school_admin' && (
+      {isAdmin && (
         <NavLink to="/app/report-cards" label={t('nav.reportCards')} onClick={closeMobile} />
       )}
-      <NavLink to="/app/search" label={t('nav.search')} onClick={closeMobile} />
-      <NavLink to="/app/import" label={t('nav.import')} onClick={closeMobile} />
+      {isAdmin && (
+        <NavLink to="/app/teachers" label={t('nav.teachers') || 'Teachers'} onClick={closeMobile} />
+      )}
+      {isAdmin && (
+        <NavLink to="/app/import" label={t('nav.import')} onClick={closeMobile} />
+      )}
+      <NavLink to="/app/helpdesk" label={t('nav.helpdesk') || 'Helpdesk'} onClick={closeMobile} />
       <NavLink to="/app/settings" label={t('nav.settings')} onClick={closeMobile} />
     </>
   )

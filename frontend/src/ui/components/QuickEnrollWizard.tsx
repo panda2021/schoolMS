@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabaseClient'
 import { Modal } from './Modal'
 import { LoadingSpinner } from './LoadingSpinner'
 import { useToast } from './toast/ToastProvider'
+import { validateDob } from '@/lib/validate'
 
 interface Props {
   open: boolean
@@ -77,12 +78,17 @@ export const QuickEnrollWizard: React.FC<Props> = ({ open, onClose, schoolId, on
   const canNext = () => {
     if (step === 0) {
       if (mode === 'existing') return !!selectedExisting
-      return firstName.trim() && lastName.trim()
+      if (!firstName.trim() || !lastName.trim()) return false
+      return validateDob(dob).ok
     }
     return true
   }
 
   const handleSubmit = async () => {
+    if (mode === 'new') {
+      const dobCheck = validateDob(dob)
+      if (!dobCheck.ok) { show(dobCheck.error!, 'error'); return }
+    }
     setSaving(true)
     let studentId: string
 
@@ -210,7 +216,10 @@ export const QuickEnrollWizard: React.FC<Props> = ({ open, onClose, schoolId, on
                 </div>
                 <div>
                   <label className="helper">Date of Birth</label>
-                  <input type="date" value={dob} onChange={e => setDob(e.target.value)} />
+                  <input type="date" value={dob} onChange={e => setDob(e.target.value)} max={new Date().toISOString().slice(0, 10)} />
+                  {dob && !validateDob(dob).ok && (
+                    <small style={{ color: '#dc2626' }}>{validateDob(dob).error}</small>
+                  )}
                 </div>
                 <div>
                   <label className="helper">Gender</label>

@@ -66,6 +66,13 @@ export default function Grades() {
   const [saving, setSaving] = useState(false)
   const [loadingStudents, setLoadingStudents] = useState(false)
 
+  // Inline create-assessment
+  const [showNewAssessment, setShowNewAssessment] = useState(false)
+  const [newAssessmentName, setNewAssessmentName] = useState('')
+  const [newAssessmentWeight, setNewAssessmentWeight] = useState('20')
+  const [newAssessmentTerm, setNewAssessmentTerm] = useState('Term 1')
+  const [creatingAssessment, setCreatingAssessment] = useState(false)
+
   useEffect(() => {
     const init = async () => {
       const { data: { user } } = await supabase.auth.getUser()
@@ -256,6 +263,34 @@ export default function Grades() {
     return <div className="card"><h2 style={{ marginTop: 0 }}>{t('grades.title')}</h2><p className="helper">{t('grades.noAssignments')}</p></div>
   }
 
+  const createAssessment = async () => {
+    if (!newAssessmentName.trim() || !schoolId) return
+    const weight = parseFloat(newAssessmentWeight)
+    if (isNaN(weight) || weight <= 0 || weight > 100) {
+      show('Weight must be between 0 and 100.', 'error')
+      return
+    }
+    setCreatingAssessment(true)
+    const { data, error } = await supabase.from('assessment_types').insert({
+      school_id: schoolId,
+      name: newAssessmentName.trim(),
+      weight,
+      term_label: newAssessmentTerm.trim() || 'Term 1',
+      is_active: true,
+    }).select('id, name, weight, term_label').single()
+    if (error) {
+      show(error.message, 'error')
+    } else if (data) {
+      setAssessmentTypes(prev => [...prev, data])
+      setSelectedTerm(data.term_label)
+      setSelectedAssessment(data.id)
+      setNewAssessmentName('')
+      setShowNewAssessment(false)
+      show('Assessment created', 'success')
+    }
+    setCreatingAssessment(false)
+  }
+
   return (
     <div className="grid" style={{ gap: 16 }}>
       <div className="card">
@@ -295,6 +330,45 @@ export default function Grades() {
                   {termAssessments.map(a => <option key={a.id} value={a.id}>{a.name} ({a.weight}%)</option>)}
                 </select>
               </div>
+            </div>
+
+            {/* Inline create-assessment for teacher/admin */}
+            <div style={{ marginBottom: 12 }}>
+              {!showNewAssessment ? (
+                <button className="btn btn-ghost" style={{ fontSize: 13 }} onClick={() => setShowNewAssessment(true)}>
+                  + New assessment / assignment
+                </button>
+              ) : (
+                <div className="card" style={{ background: 'var(--bg)', padding: 12 }}>
+                  <p className="helper" style={{ margin: '0 0 8px 0' }}>Create a new assessment (e.g. "Quiz 1", "Midterm", "Project")</p>
+                  <div className="grid cols-3" style={{ gap: 8 }}>
+                    <input
+                      placeholder="Name (e.g. Quiz 1)"
+                      value={newAssessmentName}
+                      onChange={e => setNewAssessmentName(e.target.value)}
+                    />
+                    <input
+                      type="number" min="0" max="100" step="1"
+                      placeholder="Weight %"
+                      value={newAssessmentWeight}
+                      onChange={e => setNewAssessmentWeight(e.target.value)}
+                    />
+                    <input
+                      placeholder="Term (e.g. Term 1)"
+                      value={newAssessmentTerm}
+                      onChange={e => setNewAssessmentTerm(e.target.value)}
+                    />
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                    <button className="btn btn-primary" onClick={createAssessment} disabled={creatingAssessment || !newAssessmentName.trim()}>
+                      {creatingAssessment ? <LoadingSpinner size="sm" /> : 'Create'}
+                    </button>
+                    <button className="btn btn-secondary" onClick={() => { setShowNewAssessment(false); setNewAssessmentName('') }}>
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Grade entry table */}

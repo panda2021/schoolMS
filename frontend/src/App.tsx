@@ -14,6 +14,8 @@ import BulkImport from '@/pages/BulkImport'
 import Search from '@/pages/Search'
 import Grades from '@/pages/Grades'
 import ReportCards from '@/pages/ReportCards'
+import Teachers from '@/pages/Teachers'
+import Helpdesk from '@/pages/Helpdesk'
 import ProtectedLayout from '@/ui/auth/ProtectedLayout'
 import RoleRedirect from '@/ui/auth/RoleRedirect'
 import AdminDashboard from '@/pages/AdminDashboard'
@@ -46,6 +48,8 @@ export default function App() {
         <Route path="report-cards" element={<ReportCards />} />
         <Route path="search" element={<Search />} />
         <Route path="import" element={<BulkImport />} />
+        <Route path="teachers" element={<Teachers />} />
+        <Route path="helpdesk" element={<Helpdesk />} />
         <Route path="settings" element={<Settings />} />
       </Route>
 

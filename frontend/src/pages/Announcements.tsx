@@ -138,22 +138,41 @@ export default function Announcements() {
   }, [])
 
   const handleCreate = async () => {
-    if (!formTitle.trim() || !schoolId || !userId) return
+    if (!formTitle.trim()) {
+      show('Please enter a title.', 'error'); return
+    }
+    if (!userId) {
+      show('Not signed in. Please sign in again.', 'error'); return
+    }
+    if (!schoolId) {
+      show('Your account is not linked to a school yet. Ask the super admin to link you.', 'error'); return
+    }
     if (audienceType === 'targeted' && targetedParents.length === 0) {
       show('Select at least one parent for targeted announcement', 'error')
       return
     }
+    if (audienceType === 'class' && !formClass) {
+      show('Select a class.', 'error'); return
+    }
     setSaving(true)
 
-    const { data: ann, error } = await supabase.from('announcements').insert({
+    const insertPayload = {
       school_id: schoolId,
       title: formTitle.trim(),
       body: formBody.trim() || null,
-      class_id: audienceType === 'class' ? formClass || null : null,
+      class_id: audienceType === 'class' ? formClass : null,
       created_by: userId,
-    }).select('id').single()
+    }
+    console.log('[Announcements] Inserting:', insertPayload)
 
-    if (error) { show(error.message, 'error'); setSaving(false); return }
+    const { data: ann, error } = await supabase.from('announcements').insert(insertPayload).select('id').single()
+
+    if (error) {
+      console.error('[Announcements] insert error:', error)
+      show(`Could not post: ${error.message}`, 'error')
+      setSaving(false)
+      return
+    }
 
     // Insert targeted recipients if applicable
     if (audienceType === 'targeted' && targetedParents.length > 0 && ann) {

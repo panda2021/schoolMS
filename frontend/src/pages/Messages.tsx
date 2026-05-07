@@ -2,10 +2,10 @@ import { useEffect, useState, useRef } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { useToast } from '@/ui/components/toast/ToastProvider'
 import { LoadingSpinner } from '@/ui/components/LoadingSpinner'
-import { FileUpload } from '@/ui/components/FileUpload'
 import { ParentMultiSelect } from '@/ui/components/ParentMultiSelect'
 import { Modal } from '@/ui/components/Modal'
 import { useLanguage } from '@/i18n/LanguageProvider'
+import { Paperclip, Send, X } from 'lucide-react'
 
 interface Conversation {
   parent_id: string
@@ -47,7 +47,8 @@ export default function Messages() {
   const [newMsg, setNewMsg] = useState('')
   const [sending, setSending] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
-  const [lastSentMsgId, setLastSentMsgId] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [pendingFile, setPendingFile] = useState<File | null>(null)
   const [messageMedia, setMessageMedia] = useState<Record<string, { url: string; name: string; mime: string }[]>>({})
 
   // New conversation
@@ -259,22 +260,47 @@ export default function Messages() {
   }
 
   const sendMessage = async () => {
-    if (!newMsg.trim() || !activeConvo || !userId || !schoolId) return
+    if ((!newMsg.trim() && !pendingFile) || !activeConvo || !userId || !schoolId) return
     setSending(true)
+    const messageText = newMsg.trim() || (pendingFile ? `[attachment: ${pendingFile.name}]` : '')
     const { data, error } = await supabase.from('messages').insert({
       school_id: schoolId,
       parent_id: activeConvo.parent_id,
       teacher_id: activeConvo.teacher_id,
       student_id: activeConvo.student_id,
       sender_id: userId,
-      text_content: newMsg.trim(),
+      text_content: messageText,
     }).select('id').single()
-    if (error) { show(error.message, 'error') }
-    else {
-      setNewMsg('')
-      setLastSentMsgId(data?.id ?? null)
-      await openThread(activeConvo)
+    if (error) { show(error.message, 'error'); setSending(false); return }
+    setNewMsg('')
+
+    if (pendingFile && data?.id) {
+      try {
+        const safeName = pendingFile.name.replace(/[^\w.]+/g, '_')
+        const path = `${schoolId}/messages/${userId}/${Date.now()}_${safeName}`
+        const { error: upErr } = await supabase.storage.from('media').upload(path, pendingFile, {
+          upsert: false,
+          contentType: pendingFile.type || 'application/octet-stream',
+        })
+        if (upErr) throw upErr
+        const { error: assetErr } = await supabase.from('media_assets').insert({
+          bucket: 'media',
+          object_path: path,
+          school_id: schoolId,
+          mime_type: pendingFile.type || 'application/octet-stream',
+          file_size_bytes: pendingFile.size,
+          message_id: data.id,
+        })
+        if (assetErr) throw assetErr
+        show('Message and attachment sent', 'success')
+      } catch (e: any) {
+        show('Message sent, but attachment failed: ' + (e.message || e), 'error')
+      }
+      setPendingFile(null)
+      if (fileInputRef.current) fileInputRef.current.value = ''
     }
+
+    await openThread(activeConvo)
     setSending(false)
   }
 
@@ -517,7 +543,50 @@ export default function Messages() {
           {/* Input */}
           {canSendInActiveConvo() ? (
             <div style={{ padding: '8px 16px', borderTop: '1px solid var(--border)' }}>
-              <div style={{ display: 'flex', gap: 8 }}>
+              {pendingFile && (
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  padding: '6px 10px', marginBottom: 6,
+                  background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8,
+                  fontSize: 13,
+                }}>
+                  <Paperclip size={14} />
+                  <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {pendingFile.name} ({(pendingFile.size / 1024).toFixed(0)} KB)
+                  </span>
+                  <button
+                    className="btn btn-ghost"
+                    onClick={() => { setPendingFile(null); if (fileInputRef.current) fileInputRef.current.value = '' }}
+                    style={{ padding: 2 }}
+                    aria-label="Remove attachment"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              )}
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*,video/*,application/pdf"
+                  style={{ display: 'none' }}
+                  onChange={e => {
+                    const f = e.target.files?.[0]
+                    if (!f) return
+                    if (f.size > 50 * 1024 * 1024) { show('File too large (max 50MB)', 'error'); return }
+                    setPendingFile(f)
+                  }}
+                />
+                <button
+                  className="btn btn-ghost"
+                  onClick={() => fileInputRef.current?.click()}
+                  style={{ padding: 8 }}
+                  disabled={sending}
+                  aria-label="Attach file"
+                  title="Attach a file"
+                >
+                  <Paperclip size={18} />
+                </button>
                 <input
                   value={newMsg}
                   onChange={e => setNewMsg(e.target.value)}
@@ -525,24 +594,16 @@ export default function Messages() {
                   placeholder={t('messages.placeholder')}
                   style={{ flex: 1, padding: '8px 12px' }}
                 />
-                <button className="btn btn-primary" onClick={sendMessage} disabled={sending || !newMsg.trim()}>
-                  {sending ? <LoadingSpinner size="sm" /> : t('messages.send')}
+                <button
+                  className="btn btn-primary"
+                  onClick={sendMessage}
+                  disabled={sending || (!newMsg.trim() && !pendingFile)}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                  aria-label={t('messages.send')}
+                >
+                  {sending ? <LoadingSpinner size="sm" /> : <Send size={16} />}
                 </button>
               </div>
-              {lastSentMsgId && schoolId && userId && (
-                <div style={{ marginTop: 6 }}>
-                  <FileUpload
-                    schoolId={schoolId}
-                    uploadedBy={userId}
-                    folder="messages"
-                    associationField="message_id"
-                    associationId={lastSentMsgId}
-                    onUploadComplete={() => { show(t('messages.fileAttached'), 'success'); setLastSentMsgId(null); if (activeConvo) openThread(activeConvo) }}
-                    onError={(msg) => show(msg, 'error')}
-                    compact
-                  />
-                </div>
-              )}
             </div>
           ) : (
             <div style={{ padding: '8px 16px', borderTop: '1px solid var(--border)', textAlign: 'center' }}>

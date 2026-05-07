@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase, createNonPersistingClient } from '@/lib/supabaseClient'
 import { useToast } from '@/ui/components/toast/ToastProvider'
 import { LoadingSpinner } from '@/ui/components/LoadingSpinner'
-import { Building2, Users, GraduationCap, UserCheck, X } from 'lucide-react'
+import { Building2, Users, GraduationCap, UserCheck, X, Database, Trash2 } from 'lucide-react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
 import { useLanguage } from '@/i18n/LanguageProvider'
 
@@ -329,6 +329,59 @@ export default function SuperAdminDashboard() {
     }
   }
 
+  // Demo data state
+  const [demoStatus, setDemoStatus] = useState<{ schools: number; classes: number; students: number } | null>(null)
+  const [demoBusy, setDemoBusy] = useState<'seed' | 'wipe' | null>(null)
+
+  const refreshDemoStatus = async () => {
+    const { data, error } = await supabase.rpc('demo_data_status')
+    if (!error && data) {
+      setDemoStatus({
+        schools: Number((data as any).schools ?? 0),
+        classes: Number((data as any).classes ?? 0),
+        students: Number((data as any).students ?? 0),
+      })
+    }
+  }
+
+  useEffect(() => { refreshDemoStatus() }, [])
+
+  const seedDemo = async () => {
+    if (demoStatus && demoStatus.schools > 0) {
+      if (!confirm(`Demo data already exists (${demoStatus.schools} schools, ${demoStatus.students} students). Seeding again will add more rows. Continue?`)) return
+    }
+    setDemoBusy('seed')
+    const { data, error } = await supabase.rpc('seed_demo_data')
+    if (error) {
+      show(`Seed failed: ${error.message}`, 'error')
+    } else {
+      const r = data as any
+      show(`Demo data seeded: ${r.schools_created} schools, ${r.classes_created} classes, ${r.students_created} students, ${r.announcements_created} announcements.`, 'success')
+      await refreshDemoStatus()
+      await loadData()
+    }
+    setDemoBusy(null)
+  }
+
+  const wipeDemo = async () => {
+    if (!demoStatus || demoStatus.schools === 0) {
+      show('No demo data to wipe.', 'success')
+      return
+    }
+    if (!confirm(`This will permanently delete ${demoStatus.schools} demo schools and all their classes (${demoStatus.classes}) and students (${demoStatus.students}). Continue?`)) return
+    setDemoBusy('wipe')
+    const { data, error } = await supabase.rpc('wipe_demo_data')
+    if (error) {
+      show(`Wipe failed: ${error.message}`, 'error')
+    } else {
+      const r = data as any
+      show(`Wiped ${r.schools_deleted} demo school${r.schools_deleted === 1 ? '' : 's'} and all their data.`, 'success')
+      await refreshDemoStatus()
+      await loadData()
+    }
+    setDemoBusy(null)
+  }
+
   const activeCount = schools.filter(s => s.subscription_status === 'active').length
   const trialCount = schools.filter(s => s.subscription_status === 'trial').length
   const suspendedCount = schools.filter(s => s.subscription_status === 'suspended' || s.subscription_status === 'cancelled').length
@@ -368,6 +421,47 @@ export default function SuperAdminDashboard() {
             <div className="stat-icon" style={{ color: s.color }}>{s.icon}</div>
           </div>
         ))}
+      </div>
+
+      {/* Demo data panel */}
+      <div className="chart-card" style={{ borderLeft: '4px solid #f59e0b' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+          <div>
+            <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Database size={18} /> Demo data
+            </h3>
+            <p style={{ margin: '6px 0 0 0', fontSize: 13, color: 'var(--muted)' }}>
+              One-click sample data for product demos. Three Ethiopian schools, 5 classes each, 10 students per class. Wipe cleanly anytime.
+            </p>
+            {demoStatus && (
+              <div style={{ marginTop: 10, display: 'flex', gap: 12, fontSize: 13 }}>
+                <span><strong>{demoStatus.schools}</strong> demo schools</span>
+                <span>·</span>
+                <span><strong>{demoStatus.classes}</strong> classes</span>
+                <span>·</span>
+                <span><strong>{demoStatus.students}</strong> students</span>
+              </div>
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              className="btn btn-primary"
+              onClick={seedDemo}
+              disabled={demoBusy !== null}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            >
+              {demoBusy === 'seed' ? <><LoadingSpinner size="sm" /> Seeding…</> : <><Database size={14} /> Populate demo data</>}
+            </button>
+            <button
+              className="btn btn-secondary"
+              onClick={wipeDemo}
+              disabled={demoBusy !== null || !demoStatus || demoStatus.schools === 0}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#dc2626' }}
+            >
+              {demoBusy === 'wipe' ? <><LoadingSpinner size="sm" /> Wiping…</> : <><Trash2 size={14} /> Wipe demo data</>}
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Subscription chart */}
