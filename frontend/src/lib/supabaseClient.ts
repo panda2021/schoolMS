@@ -27,5 +27,8 @@ export const createNonPersistingClient = () =>
       persistSession: false,
       autoRefreshToken: false,
       detectSessionInUrl: false,
+      // Distinct storage key so this transient client does not collide with the
+      // main client's session ("Multiple GoTrueClient instances" warning).
+      storageKey: 'sb-admin-temp-auth',
     },
   })

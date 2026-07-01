@@ -200,7 +200,32 @@ export default function SuperAdminDashboard() {
     if (adminPassword.length < 6) { show('Password must be at least 6 characters', 'error'); return }
     setSaving(true)
 
-    // 1. Create school
+    // 1. Create the admin auth user FIRST, with a non-persisting client (won't
+    // affect the current session). Doing this before the school means an
+    // already-registered email cannot leave behind an orphan school.
+    const tempClient = createNonPersistingClient()
+    const { data: authData, error: authErr } = await tempClient.auth.signUp({
+      email: adminEmail.trim(),
+      password: adminPassword,
+      options: { data: { full_name: adminFullName.trim() } },
+    })
+
+    if (authErr || !authData.user) {
+      show(`Admin account could not be created: ${authErr?.message ?? 'Unknown error'}`, 'error')
+      setSaving(false)
+      return
+    }
+
+    // When "Confirm email" is enabled, signUp with an already-registered email
+    // returns an obfuscated user (empty `identities`, a random id) instead of an
+    // error. Inserting that id into public.users would violate users_id_fkey.
+    if (!authData.user.identities || authData.user.identities.length === 0) {
+      show(`That admin email is already registered. Use a different email, or create the school and link the existing admin from the edit screen.`, 'error')
+      setSaving(false)
+      return
+    }
+
+    // 2. Create school
     const { data: schoolData, error: schoolErr } = await supabase.from('schools').insert({
       name: newName.trim(),
       address: newAddress.trim() || null,
@@ -214,21 +239,6 @@ export default function SuperAdminDashboard() {
     }
 
     const schoolId = schoolData.id
-
-    // 2. Create auth user with a non-persisting client (won't affect current session)
-    const tempClient = createNonPersistingClient()
-    const { data: authData, error: authErr } = await tempClient.auth.signUp({
-      email: adminEmail.trim(),
-      password: adminPassword,
-      options: { data: { full_name: adminFullName.trim() } },
-    })
-
-    if (authErr || !authData.user) {
-      show(`School created but admin account failed: ${authErr?.message ?? 'Unknown error'}`, 'error')
-      setSaving(false)
-      await loadData()
-      return
-    }
 
     // 3. Insert into public.users with school_admin role
     // Note: email lives in auth.users, not public.users
@@ -299,6 +309,15 @@ export default function SuperAdminDashboard() {
 
     if (authErr || !authData.user) {
       show(`Failed to create admin: ${authErr?.message ?? 'Unknown error'}`, 'error')
+      setEditSaving(false)
+      return
+    }
+
+    // When "Confirm email" is enabled, signUp with an already-registered email
+    // returns an obfuscated user (empty `identities`, a random id) instead of an
+    // error. Inserting that id into public.users would violate users_id_fkey.
+    if (!authData.user.identities || authData.user.identities.length === 0) {
+      show(`That email is already registered. Use "Assign an existing admin" below to link them, or use a different email.`, 'error')
       setEditSaving(false)
       return
     }
