@@ -9,7 +9,7 @@ Phase 1 of the personalization/RBAC plan is in flight. Phases 2-6 deferred per u
 
 ## TL;DR — next 3 things to do
 
-0. **Apply migration `0027_feature_permissions.sql`** in Supabase SQL editor (Phase 2 — see below). Non-breaking: seeds reproduce current behavior. After applying, deploy the frontend and the super-admin gets a new "Feature Matrix" nav item at `/app/features`.
+0. **Apply migrations `0027_feature_permissions.sql` (Phase 2) and `0028_school_branding.sql` (Phase 3)** in the Supabase SQL editor, in order. Both non-breaking. Then deploy the frontend: super-admin gets a "Feature Matrix" nav item at `/app/features`, and the edit-school modal gains a Branding section.
 1. ~~Apply migration `0026`~~ ✅ DONE (user confirmed 2026-06-29). Both 0025 and 0026 now applied.
 2. **Re-link the two orphaned school_admin users** (see "Orphan admin recovery" below). Until they have `school_id` set, the admin attendance view will be empty AND the super-admin edit modal will keep showing "No admin assigned" for their schools.
 3. **Smoke test all three fixes** end-to-end: invite a teacher, reset an admin password, log in as a school_admin and load `/app/attendance`.
@@ -24,6 +24,7 @@ Phase 1 of the personalization/RBAC plan is in flight. Phases 2-6 deferred per u
 | 0025 | `fix_invite_consumption.sql` | ✅ (user confirmed) | Fixes `ensure_user_profile()` so the `pending_invitations` SELECT bypasses RLS (`SET row_security = off`), and adds a recovery path for users stuck in the legacy `parent / NULL school` state. Teacher invite link now correctly lands on `/app/teacher`. |
 | 0026 | `fix_admin_reset_password.sql` | ✅ (user confirmed 2026-06-29) | Adds `extensions` to `search_path` in `admin_reset_password` so `crypt()` and `gen_salt()` resolve. Also adds a `NOT FOUND` check so the RPC errors loudly if the target user doesn't exist. |
 | 0027 | `feature_permissions.sql` | ❌ **PENDING** | Phase 2 RBAC framework. Creates `features`, `role_features`, `user_feature_overrides`; adds `user_can(text,uuid)` + `my_features()` SECURITY DEFINER helpers; RLS; seeds the capability catalog and role defaults to reproduce current behavior exactly (non-breaking). |
+| 0028 | `school_branding.sql` | ❌ **PENDING** | Phase 3 branding. Adds `logo_url`, `primary_color`, `secondary_color`, `bg_image_url`, `bg_opacity` to `schools`; creates a public `branding` storage bucket; adds storage.objects write policies (super_admin any folder, school_admin own `<school_id>/` folder). |
 
 ### Frontend
 - **`frontend/src/pages/Attendance.tsx`** — new admin branch: date range, class, grade, status, name-search filters, 4 summary tiles, CSV export. Existing teacher / parent branches unchanged. `tsc --noEmit` clean.
@@ -88,9 +89,23 @@ Non-breaking design note: parent role defaults were intentionally seeded to comm
 
 Verify after apply+deploy: super-admin sees `/app/features`, can toggle a capability, and the change reflects in that role's nav on next load. Confirm admin/teacher/parent navs are unchanged from before.
 
-## Phase 3-6 plan (deferred)
+## Phase 3 — Per-school branding (BUILT 2026-07-01, pending apply+deploy)
 
-Master plan delivered and approved 2026-05-13. Phases 3-6 paused until weekly credits allow. Decisions:
+Logo + two-color theme + background image/opacity per school, applied AFTER login [D5]. Super-admin edit-school modal exposes all fields so branding is testable on existing schools [D5].
+
+Shipped:
+- **`supabase/migrations/0028_school_branding.sql`** — branding columns on `schools`; public `branding` storage bucket; storage.objects write policies (super_admin any; school_admin own `<school_id>/` folder).
+- **`frontend/src/ui/branding/BrandingProvider.tsx`** — `useBranding()`; loads the signed-in user's school branding, applies `--primary`/`--primary-600`(derived)/`--accent` inline on `:root` (overrides theme), and renders a fixed faint background-image layer at the configured opacity. Fails safe to defaults; clears vars on unmount/sign-out. Wired into `main.tsx` inside `FeatureProvider`.
+- **`frontend/src/ui/layout/AppShell.tsx`** — sidebar logo uses `branding.logoUrl` when set, else `/images/logo.webp`.
+- **`frontend/src/pages/SuperAdminDashboard.tsx`** — edit-school modal gained a Branding section: primary/secondary color pickers (+hex + Clear), logo upload (public bucket, live preview), background upload + opacity slider. Saved via the existing `saveSchoolEdits` update. `SchoolRow` + the schools query carry the new columns.
+
+How branding renders: colors are inline CSS vars on `<html>` so they beat the light/dark stylesheet in both themes; the bg image is a `position:fixed; z-index:-1` layer, visible in the transparent `.content` region behind cards (sidebar/panels stay opaque).
+
+Verify after apply+deploy: as super-admin, edit a school → set a primary color + upload a logo/background → Save. Then log in as that school's admin/teacher/parent → sidebar logo, button/accent colors, and faint background reflect the school. Super-admin's own chrome is unbranded (no school_id).
+
+## Phase 4-6 plan (deferred)
+
+Master plan delivered and approved 2026-05-13. Phases 4-6 paused until weekly credits allow. Decisions:
 
 - **D1**: Students stay as roster records only (no login). Add parent notifications to nudge per-student check later.
 - **D2**: Stranger login (no invitation) → "Pending approval" screen; admin gets "Pending users" tab to approve.
@@ -118,14 +133,17 @@ supabase/migrations/
   0025_fix_invite_consumption.sql           ← applied
   0026_fix_admin_reset_password.sql         ← applied
   0027_feature_permissions.sql              ← PENDING (Phase 2 RBAC framework)
+  0028_school_branding.sql                  ← PENDING (Phase 3 branding + storage bucket)
 frontend/src/pages/
   Attendance.tsx                            ← admin branch added
-  SuperAdminDashboard.tsx                   ← assign-existing-admin UI + reordered create flow + email-taken guard
+  SuperAdminDashboard.tsx                   ← assign-existing-admin UI + email-taken guard + branding editor
   FeatureMatrix.tsx                         ← new — super-admin role×capability editor (/app/features)
 frontend/src/ui/features/
   FeatureProvider.tsx                       ← new — useFeature() hook (my_features RPC)
+frontend/src/ui/branding/
+  BrandingProvider.tsx                      ← new — useBranding(); applies school colors/logo/bg
 frontend/src/lib/supabaseClient.ts          ← temp client got distinct storageKey
-frontend/src/ui/layout/AppShell.tsx         ← nav gated by capability
+frontend/src/ui/layout/AppShell.tsx         ← nav gated by capability; logo from branding
 frontend/ROUTES.md                          ← keep updated when routes change
 scripts/
   diagnose_admin_links.sql                  ← orphan-admin investigation

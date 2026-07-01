@@ -16,6 +16,11 @@ interface SchoolRow {
   trial_ends_at: string | null
   student_count: number
   teacher_count: number
+  logo_url: string | null
+  primary_color: string | null
+  secondary_color: string | null
+  bg_image_url: string | null
+  bg_opacity: number | null
 }
 
 interface SchoolAdmin {
@@ -52,6 +57,15 @@ export default function SuperAdminDashboard() {
   const [editPlan, setEditPlan] = useState('')
   const [editSaving, setEditSaving] = useState(false)
 
+  // Branding (Phase 3)
+  const [editLogoUrl, setEditLogoUrl] = useState<string>('')
+  const [editPrimary, setEditPrimary] = useState<string>('')
+  const [editSecondary, setEditSecondary] = useState<string>('')
+  const [editBgUrl, setEditBgUrl] = useState<string>('')
+  const [editBgOpacity, setEditBgOpacity] = useState<number>(0.08)
+  const [uploadingLogo, setUploadingLogo] = useState(false)
+  const [uploadingBg, setUploadingBg] = useState(false)
+
   // Admin management in edit modal
   const [schoolAdmin, setSchoolAdmin] = useState<SchoolAdmin | null>(null)
   const [adminLoading, setAdminLoading] = useState(false)
@@ -70,7 +84,7 @@ export default function SuperAdminDashboard() {
     // Load all schools
     const { data: schoolData } = await supabase
       .from('schools')
-      .select('id, name, address, phone, subscription_status, subscription_plan, trial_ends_at')
+      .select('id, name, address, phone, subscription_status, subscription_plan, trial_ends_at, logo_url, primary_color, secondary_color, bg_image_url, bg_opacity')
       .is('deleted_at', null)
       .order('created_at', { ascending: false })
 
@@ -180,6 +194,11 @@ export default function SuperAdminDashboard() {
     setEditPhone(school.phone ?? '')
     setEditStatus(school.subscription_status)
     setEditPlan(school.subscription_plan)
+    setEditLogoUrl(school.logo_url ?? '')
+    setEditPrimary(school.primary_color ?? '')
+    setEditSecondary(school.secondary_color ?? '')
+    setEditBgUrl(school.bg_image_url ?? '')
+    setEditBgOpacity(school.bg_opacity == null ? 0.08 : Number(school.bg_opacity))
     setShowCreateAdmin(false)
     setNewAdminName('')
     setNewAdminEmail('')
@@ -273,6 +292,11 @@ export default function SuperAdminDashboard() {
       phone: editPhone.trim() || null,
       subscription_status: editStatus,
       subscription_plan: editPlan,
+      logo_url: editLogoUrl.trim() || null,
+      primary_color: editPrimary.trim() || null,
+      secondary_color: editSecondary.trim() || null,
+      bg_image_url: editBgUrl.trim() || null,
+      bg_opacity: editBgOpacity,
     }
     if (editStatus === 'suspended') {
       updates.suspended_at = new Date().toISOString()
@@ -289,6 +313,30 @@ export default function SuperAdminDashboard() {
       await loadData()
     }
     setEditSaving(false)
+  }
+
+  // Upload a branding asset (logo or background) to the public `branding` bucket
+  // under '<school_id>/...', then store its public URL in the matching field.
+  const uploadBrandingFile = async (file: File, kind: 'logo' | 'bg') => {
+    if (!editSchool) return
+    const setUploading = kind === 'logo' ? setUploadingLogo : setUploadingBg
+    setUploading(true)
+    const ext = (file.name.split('.').pop() || 'png').toLowerCase()
+    const path = `${editSchool.id}/${kind}-${Date.now()}.${ext}`
+    const { error } = await supabase.storage.from('branding').upload(path, file, {
+      upsert: true,
+      cacheControl: '3600',
+    })
+    if (error) {
+      show(error.message, 'error')
+      setUploading(false)
+      return
+    }
+    const { data } = supabase.storage.from('branding').getPublicUrl(path)
+    if (kind === 'logo') setEditLogoUrl(data.publicUrl)
+    else setEditBgUrl(data.publicUrl)
+    show(`${kind === 'logo' ? 'Logo' : 'Background'} uploaded — remember to Save`, 'success')
+    setUploading(false)
   }
 
   // Create a new admin for a school (optionally replacing the existing one).
@@ -703,6 +751,65 @@ export default function SuperAdminDashboard() {
                     <option value="standard">{t('super.standard')}</option>
                     <option value="premium">{t('super.premium')}</option>
                   </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Branding Section */}
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 10, color: 'var(--muted)' }}>Branding</div>
+
+              {/* Colors */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                <div>
+                  <label className="helper">Primary color</label>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <input type="color" value={editPrimary || '#2563eb'} onChange={e => setEditPrimary(e.target.value)} style={{ width: 44, height: 36, padding: 2 }} />
+                    <input value={editPrimary} placeholder="default" onChange={e => setEditPrimary(e.target.value)} style={{ flex: 1 }} />
+                    {editPrimary && <button className="btn btn-ghost" style={{ padding: '4px 8px' }} onClick={() => setEditPrimary('')}>Clear</button>}
+                  </div>
+                </div>
+                <div>
+                  <label className="helper">Secondary (accent) color</label>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <input type="color" value={editSecondary || '#14b8a6'} onChange={e => setEditSecondary(e.target.value)} style={{ width: 44, height: 36, padding: 2 }} />
+                    <input value={editSecondary} placeholder="default" onChange={e => setEditSecondary(e.target.value)} style={{ flex: 1 }} />
+                    {editSecondary && <button className="btn btn-ghost" style={{ padding: '4px 8px' }} onClick={() => setEditSecondary('')}>Clear</button>}
+                  </div>
+                </div>
+              </div>
+
+              {/* Logo */}
+              <div style={{ marginBottom: 12 }}>
+                <label className="helper">Logo</label>
+                <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                  {editLogoUrl
+                    ? <img src={editLogoUrl} alt="Logo preview" style={{ height: 40, maxWidth: 140, objectFit: 'contain', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg)' }} />
+                    : <span className="helper" style={{ fontSize: 12 }}>No logo (uses default)</span>}
+                  <input type="file" accept="image/*" disabled={uploadingLogo}
+                    onChange={e => { const f = e.target.files?.[0]; if (f) uploadBrandingFile(f, 'logo'); e.target.value = '' }} />
+                  {uploadingLogo && <LoadingSpinner size="sm" />}
+                  {editLogoUrl && <button className="btn btn-ghost" style={{ padding: '4px 8px' }} onClick={() => setEditLogoUrl('')}>Remove</button>}
+                </div>
+              </div>
+
+              {/* Background image + opacity */}
+              <div>
+                <label className="helper">Background image</label>
+                <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 8 }}>
+                  {editBgUrl
+                    ? <img src={editBgUrl} alt="Background preview" style={{ height: 40, width: 64, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--border)' }} />
+                    : <span className="helper" style={{ fontSize: 12 }}>No background</span>}
+                  <input type="file" accept="image/*" disabled={uploadingBg}
+                    onChange={e => { const f = e.target.files?.[0]; if (f) uploadBrandingFile(f, 'bg'); e.target.value = '' }} />
+                  {uploadingBg && <LoadingSpinner size="sm" />}
+                  {editBgUrl && <button className="btn btn-ghost" style={{ padding: '4px 8px' }} onClick={() => setEditBgUrl('')}>Remove</button>}
+                </div>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                  <label className="helper" style={{ minWidth: 130 }}>Background opacity</label>
+                  <input type="range" min={0} max={1} step={0.02} value={editBgOpacity}
+                    onChange={e => setEditBgOpacity(Number(e.target.value))} style={{ flex: 1 }} />
+                  <span style={{ minWidth: 40, textAlign: 'right' }}>{Math.round(editBgOpacity * 100)}%</span>
                 </div>
               </div>
             </div>

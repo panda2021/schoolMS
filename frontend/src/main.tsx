@@ -7,6 +7,7 @@ import { ThemeProvider } from './ui/theme/ThemeProvider'
 import { LanguageProvider } from './i18n/LanguageProvider'
 import { ToastProvider } from './ui/components/toast/ToastProvider'
 import { FeatureProvider } from './ui/features/FeatureProvider'
+import { BrandingProvider } from './ui/branding/BrandingProvider'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
@@ -15,7 +16,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         <LanguageProvider>
           <ToastProvider>
             <FeatureProvider>
-              <App />
+              <BrandingProvider>
+                <App />
+              </BrandingProvider>
             </FeatureProvider>
           </ToastProvider>
         </LanguageProvider>

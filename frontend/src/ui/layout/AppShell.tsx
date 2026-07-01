@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useTheme } from '@/ui/theme/ThemeProvider'
 import { useLanguage } from '@/i18n/LanguageProvider'
 import { useFeature } from '@/ui/features/FeatureProvider'
+import { useBranding } from '@/ui/branding/BrandingProvider'
 import { supabase } from '@/lib/supabaseClient'
 
 const NavLink: React.FC<{ to: string; label: string; icon?: React.ReactNode; onClick?: () => void }> = ({ to, label, icon, onClick }) => {
@@ -30,6 +31,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const { theme, toggle } = useTheme()
   const { t, language, setLanguage } = useLanguage()
   const { can } = useFeature()
+  const { logoUrl } = useBranding()
   const navigate = useNavigate()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [userRole, setUserRole] = useState<string | null>(null)
@@ -114,7 +116,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       {/* Desktop sidebar */}
       <aside className="sidebar sidebar-desktop">
         <div className="brand">
-          <img src="/images/logo.webp" alt="Abogida logo" style={{ width: 120, height: 'auto', borderRadius: 12, display: 'block', aspectRatio: '500 / 178', maxHeight: 42.72 }} />
+          <img src={logoUrl || "/images/logo.webp"} alt="School logo" style={{ width: 120, height: 'auto', borderRadius: 12, display: 'block', maxHeight: 48, objectFit: 'contain' }} />
           {isSuperAdmin && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>{t('nav.platformAdmin')}</div>}
         </div>
         <nav className="nav-vertical">{navItems}</nav>
@@ -125,7 +127,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         <div className="mobile-overlay" onClick={closeMobile}>
           <aside className="mobile-sidebar" onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <img src="/images/logo.webp" alt="Abogida logo" style={{ width: 100, height: 'auto', borderRadius: 10 }} />
+              <img src={logoUrl || "/images/logo.webp"} alt="School logo" style={{ width: 100, height: 'auto', borderRadius: 10, maxHeight: 44, objectFit: 'contain' }} />
               <button className="btn btn-ghost" onClick={closeMobile} aria-label="Close menu" style={{ fontSize: 20, padding: '4px 8px' }}>&times;</button>
             </div>
             <nav className="nav-vertical">{navItems}</nav>
