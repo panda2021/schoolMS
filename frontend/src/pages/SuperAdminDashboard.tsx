@@ -60,6 +60,9 @@ export default function SuperAdminDashboard() {
   const [newAdminPassword, setNewAdminPassword] = useState('')
   const [resetPassword, setResetPassword] = useState('')
   const [showCreateAdmin, setShowCreateAdmin] = useState(false)
+  const [availableAdmins, setAvailableAdmins] = useState<{ id: string; full_name: string | null; school_id: string | null }[]>([])
+  const [selectedExistingAdmin, setSelectedExistingAdmin] = useState('')
+  const [assigningExisting, setAssigningExisting] = useState(false)
 
   const loadData = async () => {
     setLoading(true)
@@ -129,10 +132,6 @@ export default function SuperAdminDashboard() {
       .maybeSingle()
 
     if (adminUser) {
-      // Get email from auth.users via supabase admin or by listing
-      // Since we can't directly query auth.users from client, we use the user's id
-      // to get their email from the auth metadata we stored during signup
-      // We'll fetch it from the users RPC or just show what we have
       const { data: authData } = await supabase.rpc('get_user_email', { user_id: adminUser.id }).maybeSingle() as { data: { email: string } | null }
       setSchoolAdmin({
         id: adminUser.id,
@@ -142,6 +141,35 @@ export default function SuperAdminDashboard() {
     }
 
     setAdminLoading(false)
+  }
+
+  const loadAvailableAdmins = async () => {
+    const { data } = await supabase
+      .from('users')
+      .select('id, full_name, school_id')
+      .eq('role_key', 'school_admin')
+      .is('deleted_at', null)
+      .order('full_name')
+    setAvailableAdmins((data ?? []) as { id: string; full_name: string | null; school_id: string | null }[])
+  }
+
+  const assignExistingAdmin = async () => {
+    if (!editSchool || !selectedExistingAdmin) return
+    setAssigningExisting(true)
+    const { error } = await supabase
+      .from('users')
+      .update({ school_id: editSchool.id })
+      .eq('id', selectedExistingAdmin)
+      .eq('role_key', 'school_admin')
+    if (error) {
+      show(`Assign failed: ${error.message}`, 'error')
+    } else {
+      show('Admin assigned to this school.', 'success')
+      setSelectedExistingAdmin('')
+      await loadSchoolAdmin(editSchool.id)
+      await loadAvailableAdmins()
+    }
+    setAssigningExisting(false)
   }
 
   // Open edit modal
@@ -157,7 +185,9 @@ export default function SuperAdminDashboard() {
     setNewAdminEmail('')
     setNewAdminPassword('')
     setResetPassword('')
+    setSelectedExistingAdmin('')
     await loadSchoolAdmin(school.id)
+    await loadAvailableAdmins()
   }
 
   const closeEditModal = () => {
@@ -251,19 +281,15 @@ export default function SuperAdminDashboard() {
     setEditSaving(false)
   }
 
-  // Create a new admin for a school (replaces existing by reassigning school_id)
+  // Create a new admin for a school (optionally replacing the existing one).
+  // Order: create new first, then unlink old. If anything fails before the new
+  // row is committed, the old admin keeps their school_id and is not orphaned.
   const createAdminForSchool = async () => {
     if (!editSchool) return
     if (!newAdminName.trim() || !newAdminEmail.trim() || !newAdminPassword.trim()) return
     if (newAdminPassword.length < 6) { show('Password must be at least 6 characters', 'error'); return }
     setEditSaving(true)
 
-    // If there's an existing admin, unlink them from this school
-    if (schoolAdmin) {
-      await supabase.from('users').update({ school_id: null }).eq('id', schoolAdmin.id)
-    }
-
-    // Create auth user
     const tempClient = createNonPersistingClient()
     const { data: authData, error: authErr } = await tempClient.auth.signUp({
       email: newAdminEmail.trim(),
@@ -277,7 +303,6 @@ export default function SuperAdminDashboard() {
       return
     }
 
-    // Insert into public.users
     const { error: userErr } = await supabase.from('users').upsert({
       id: authData.user.id,
       full_name: newAdminName.trim(),
@@ -286,16 +311,24 @@ export default function SuperAdminDashboard() {
     }, { onConflict: 'id' })
 
     if (userErr) {
-      show(`Auth created but user record failed: ${userErr.message}`, 'error')
-    } else {
-      show(`Admin ${newAdminEmail.trim()} assigned to ${editSchool.name}`, 'success')
+      show(`Auth created but user record failed: ${userErr.message}. Previous admin (if any) is unchanged.`, 'error')
+      setEditSaving(false)
+      return
     }
 
+    // Only unlink the previous admin AFTER the new one is in place.
+    const previousAdminId = schoolAdmin?.id
+    if (previousAdminId && previousAdminId !== authData.user.id) {
+      await supabase.from('users').update({ school_id: null }).eq('id', previousAdminId)
+    }
+
+    show(`Admin ${newAdminEmail.trim()} assigned to ${editSchool.name}`, 'success')
     setShowCreateAdmin(false)
     setNewAdminName('')
     setNewAdminEmail('')
     setNewAdminPassword('')
     await loadSchoolAdmin(editSchool.id)
+    await loadAvailableAdmins()
     setEditSaving(false)
   }
 
@@ -721,15 +754,51 @@ export default function SuperAdminDashboard() {
                 </div>
               ) : (
                 <div style={{ background: 'var(--bg)', borderRadius: 8, padding: 16, marginBottom: 12 }}>
-                  <div style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 8 }}>
+                  <div style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 12 }}>
                     No admin assigned to this school.
                   </div>
+                  {availableAdmins.length > 0 && (
+                    <div style={{ marginBottom: 12 }}>
+                      <label className="helper">Assign an existing admin account</label>
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', marginTop: 4 }}>
+                        <select
+                          value={selectedExistingAdmin}
+                          onChange={e => setSelectedExistingAdmin(e.target.value)}
+                          style={{ flex: 1 }}
+                        >
+                          <option value="">Select an admin...</option>
+                          {availableAdmins.map(a => {
+                            const otherSchool = a.school_id && a.school_id !== editSchool!.id
+                              ? schools.find(s => s.id === a.school_id)?.name
+                              : null
+                            const orphan = !a.school_id
+                            return (
+                              <option key={a.id} value={a.id}>
+                                {a.full_name || '(no name)'}
+                                {orphan ? ' — unassigned' : otherSchool ? ` — currently: ${otherSchool}` : ''}
+                              </option>
+                            )
+                          })}
+                        </select>
+                        <button
+                          className="btn btn-primary"
+                          onClick={assignExistingAdmin}
+                          disabled={assigningExisting || !selectedExistingAdmin}
+                        >
+                          {assigningExisting ? <><LoadingSpinner size="sm" /> Assigning...</> : 'Assign'}
+                        </button>
+                      </div>
+                      <div className="helper" style={{ marginTop: 4, fontSize: 11 }}>
+                        Reassigning an admin currently linked to another school will unlink them from that school.
+                      </div>
+                    </div>
+                  )}
                   <button
-                    className="btn btn-primary"
+                    className="btn btn-secondary"
                     style={{ fontSize: 12 }}
                     onClick={() => setShowCreateAdmin(true)}
                   >
-                    Create Admin
+                    Or create a new admin
                   </button>
                 </div>
               )}

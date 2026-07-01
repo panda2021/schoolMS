@@ -4,8 +4,21 @@ import { useToast } from '@/ui/components/toast/ToastProvider'
 import { LoadingSpinner } from '@/ui/components/LoadingSpinner'
 import { useLanguage } from '@/i18n/LanguageProvider'
 
-interface ClassRow { id: string; name: string }
+interface ClassRow { id: string; name: string; grade_level?: string | null }
 interface StudentRow { id: string; first_name: string; last_name: string }
+
+interface AdminAttendanceRow {
+  id: string
+  date: string
+  status: string
+  notes: string | null
+  student_id: string
+  student_name: string
+  class_id: string
+  class_name: string
+  grade_level: string | null
+  recorded_by: string | null
+}
 
 export default function Attendance() {
   const { t } = useLanguage()
@@ -31,10 +44,31 @@ export default function Attendance() {
     const loadClasses = async () => {
       setLoadingClasses(true)
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-      const { data: userRow } = await supabase.from('users').select('role_key').eq('id', user.id).maybeSingle()
+      if (!user) { setLoadingClasses(false); return }
+      const { data: userRow } = await supabase
+        .from('users')
+        .select('role_key, school_id')
+        .eq('id', user.id)
+        .maybeSingle()
       if (userRow) setRole(userRow.role_key)
-      // Load teacher id and school id for later use
+
+      if (userRow?.role_key === 'school_admin') {
+        const sid: string = userRow.school_id ?? ''
+        setSchoolId(sid)
+        if (sid) {
+          const { data: classRows, error } = await supabase
+            .from('classes')
+            .select('id, name, grade_level')
+            .eq('school_id', sid)
+            .is('deleted_at', null)
+            .order('name')
+          if (error) { console.error(error); setClassesError('Failed to load classes.') }
+          setClasses((classRows ?? []) as ClassRow[])
+        }
+        setLoadingClasses(false)
+        return
+      }
+
       const { data: teacher } = await supabase.from('teachers').select('id, school_id').eq('user_id', user.id).maybeSingle()
       if (!teacher) { setLoadingClasses(false); return }
       setTeacherId(teacher.id)
@@ -52,7 +86,7 @@ export default function Attendance() {
 
   useEffect(() => {
     const loadStudents = async () => {
-      if (!selectedClass) return
+      if (!selectedClass || role !== 'teacher') return
       setLoadingStudents(true)
       setStudentsError(null)
       setAttendanceTaken(false)
@@ -76,7 +110,6 @@ export default function Attendance() {
       }
       setStudents(studs ?? [])
 
-      // Check if attendance has already been taken for class+date
       const { data: existing } = await supabase
         .from('attendance')
         .select('student_id, status, created_at')
@@ -94,7 +127,7 @@ export default function Attendance() {
       setLoadingStudents(false)
     }
     loadStudents()
-  }, [selectedClass, date])
+  }, [selectedClass, date, role])
 
   const save = async () => {
     if (attendanceTaken && !editMode) {
@@ -137,7 +170,6 @@ export default function Attendance() {
   const [attendanceHistory, setAttendanceHistory] = useState<{ date: string; status: string; class_name: string; notes: string | null }[]>([])
   const [loadingHistory, setLoadingHistory] = useState(false)
 
-  // Load parent's children
   useEffect(() => {
     if (role !== 'parent') return
     const loadChildren = async () => {
@@ -153,7 +185,6 @@ export default function Attendance() {
     loadChildren()
   }, [role])
 
-  // Load attendance history for selected child
   useEffect(() => {
     if (!selectedChild || role !== 'parent') return
     const loadHistory = async () => {
@@ -189,6 +220,135 @@ export default function Attendance() {
     if (status === 'absent') return <span className="badge badge-danger">{t('attendance.absent')}</span>
     if (status === 'late') return <span className="badge badge-warning">{t('attendance.late')}</span>
     return <span className="badge">{status}</span>
+  }
+
+  // ----- Admin view state -----
+  const todayStr = new Date().toISOString().slice(0, 10)
+  const [adminStart, setAdminStart] = useState<string>(todayStr)
+  const [adminEnd, setAdminEnd] = useState<string>(todayStr)
+  const [adminClassId, setAdminClassId] = useState<string>('')
+  const [adminGrade, setAdminGrade] = useState<string>('')
+  const [adminStatus, setAdminStatus] = useState<string>('')
+  const [adminSearch, setAdminSearch] = useState<string>('')
+  const [adminRows, setAdminRows] = useState<AdminAttendanceRow[]>([])
+  const [adminLoading, setAdminLoading] = useState(false)
+  const [adminError, setAdminError] = useState<string | null>(null)
+
+  const grades = useMemo(() => {
+    const set = new Set<string>()
+    for (const c of classes) if (c.grade_level) set.add(c.grade_level)
+    return Array.from(set).sort()
+  }, [classes])
+
+  useEffect(() => {
+    if (role !== 'school_admin' || !schoolId) return
+    let cancelled = false
+    const load = async () => {
+      setAdminLoading(true)
+      setAdminError(null)
+      let q = supabase
+        .from('attendance')
+        .select('id, date, status, notes, student_id, class_id, created_by, students(first_name, last_name), classes(name, grade_level, school_id)')
+        .gte('date', adminStart)
+        .lte('date', adminEnd)
+        .order('date', { ascending: false })
+        .limit(1000)
+      if (adminClassId) q = q.eq('class_id', adminClassId)
+      if (adminStatus) q = q.eq('status', adminStatus)
+      const { data, error } = await q
+      if (cancelled) return
+      if (error) {
+        console.error(error)
+        setAdminError('Failed to load attendance.')
+        setAdminRows([])
+        setAdminLoading(false)
+        return
+      }
+
+      const creatorIds = Array.from(new Set((data ?? []).map((r: any) => r.created_by).filter(Boolean)))
+      let creatorMap: Record<string, string> = {}
+      if (creatorIds.length > 0) {
+        const { data: teachersRows } = await supabase
+          .from('teachers')
+          .select('id, users(full_name)')
+          .in('id', creatorIds)
+        for (const tr of (teachersRows ?? []) as any[]) {
+          creatorMap[tr.id] = tr.users?.full_name ?? '-'
+        }
+      }
+
+      const mapped: AdminAttendanceRow[] = (data ?? [])
+        .filter((r: any) => r.classes && r.classes.school_id === schoolId)
+        .map((r: any) => ({
+          id: r.id,
+          date: r.date,
+          status: r.status,
+          notes: r.notes,
+          student_id: r.student_id,
+          student_name: r.students ? `${r.students.first_name} ${r.students.last_name}` : '-',
+          class_id: r.class_id,
+          class_name: r.classes?.name ?? '-',
+          grade_level: r.classes?.grade_level ?? null,
+          recorded_by: r.created_by ? (creatorMap[r.created_by] ?? '-') : null,
+        }))
+
+      setAdminRows(mapped)
+      setAdminLoading(false)
+    }
+    load()
+    return () => { cancelled = true }
+  }, [role, schoolId, adminStart, adminEnd, adminClassId, adminStatus])
+
+  const adminFilteredRows = useMemo(() => {
+    let rows = adminRows
+    if (adminGrade) rows = rows.filter(r => (r.grade_level ?? '') === adminGrade)
+    if (adminSearch.trim()) {
+      const q = adminSearch.trim().toLowerCase()
+      rows = rows.filter(r => r.student_name.toLowerCase().includes(q))
+    }
+    return rows
+  }, [adminRows, adminGrade, adminSearch])
+
+  const adminSummary = useMemo(() => {
+    const total = adminFilteredRows.length
+    const present = adminFilteredRows.filter(r => r.status === 'present').length
+    const absent = adminFilteredRows.filter(r => r.status === 'absent').length
+    const late = adminFilteredRows.filter(r => r.status === 'late').length
+    const excused = adminFilteredRows.filter(r => r.status === 'excused').length
+    const rate = total === 0 ? 0 : Math.round((present / total) * 100)
+    return { total, present, absent, late, excused, rate }
+  }, [adminFilteredRows])
+
+  const exportAdminCsv = () => {
+    if (adminFilteredRows.length === 0) {
+      show('Nothing to export.', 'error')
+      return
+    }
+    const header = ['Date', 'Student', 'Class', 'Grade', 'Status', 'Recorded by', 'Notes']
+    const escape = (v: any) => {
+      const s = v == null ? '' : String(v)
+      if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`
+      return s
+    }
+    const lines = [header.join(',')]
+    for (const r of adminFilteredRows) {
+      lines.push([
+        r.date,
+        r.student_name,
+        r.class_name,
+        r.grade_level ?? '',
+        r.status,
+        r.recorded_by ?? '',
+        r.notes ?? '',
+      ].map(escape).join(','))
+    }
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `attendance_${adminStart}_to_${adminEnd}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
   }
 
   return (
@@ -255,8 +415,113 @@ export default function Attendance() {
         </div>
       )}
 
-      {/* Admin/other non-teacher view */}
-      {role !== 'teacher' && role !== 'parent' && (
+      {/* Admin view */}
+      {role === 'school_admin' && (
+        <div>
+          <div className="card" style={{ marginBottom: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10 }}>
+              <div>
+                <label className="helper" htmlFor="adminStart">From</label>
+                <input id="adminStart" type="date" value={adminStart} max={adminEnd} onChange={e => setAdminStart(e.target.value)} style={{ width: '100%' }} />
+              </div>
+              <div>
+                <label className="helper" htmlFor="adminEnd">To</label>
+                <input id="adminEnd" type="date" value={adminEnd} min={adminStart} max={todayStr} onChange={e => setAdminEnd(e.target.value)} style={{ width: '100%' }} />
+              </div>
+              <div>
+                <label className="helper" htmlFor="adminClass">Class</label>
+                <select id="adminClass" value={adminClassId} onChange={e => setAdminClassId(e.target.value)} style={{ width: '100%' }}>
+                  <option value="">All classes</option>
+                  {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="helper" htmlFor="adminGrade">Grade</label>
+                <select id="adminGrade" value={adminGrade} onChange={e => setAdminGrade(e.target.value)} style={{ width: '100%' }}>
+                  <option value="">All grades</option>
+                  {grades.map(g => <option key={g} value={g}>{g}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="helper" htmlFor="adminStatus">Status</label>
+                <select id="adminStatus" value={adminStatus} onChange={e => setAdminStatus(e.target.value)} style={{ width: '100%' }}>
+                  <option value="">All statuses</option>
+                  {statuses.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="helper" htmlFor="adminSearch">Student</label>
+                <input id="adminSearch" placeholder="Search by name" value={adminSearch} onChange={e => setAdminSearch(e.target.value)} style={{ width: '100%' }} />
+              </div>
+            </div>
+            <div style={{ marginTop: 10, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button className="btn btn-secondary" onClick={exportAdminCsv} disabled={adminFilteredRows.length === 0}>Export CSV</button>
+            </div>
+          </div>
+
+          <div className="grid cols-4" style={{ gap: 8, marginBottom: 12 }}>
+            <div className="card" style={{ textAlign: 'center', padding: 10 }}>
+              <div style={{ fontSize: 20, fontWeight: 700 }}>{adminSummary.total}</div>
+              <div className="helper">Records</div>
+            </div>
+            <div className="card" style={{ textAlign: 'center', padding: 10 }}>
+              <div style={{ fontSize: 20, fontWeight: 700, color: '#166534' }}>{adminSummary.present}</div>
+              <div className="helper">Present</div>
+            </div>
+            <div className="card" style={{ textAlign: 'center', padding: 10 }}>
+              <div style={{ fontSize: 20, fontWeight: 700, color: '#dc2626' }}>{adminSummary.absent}</div>
+              <div className="helper">Absent</div>
+            </div>
+            <div className="card" style={{ textAlign: 'center', padding: 10 }}>
+              <div style={{ fontSize: 20, fontWeight: 700, color: '#92400e' }}>{adminSummary.late + adminSummary.excused}</div>
+              <div className="helper">Late / excused</div>
+            </div>
+          </div>
+
+          {adminError && (
+            <p className="helper" role="status" style={{ color: 'var(--danger)' }}>{adminError}</p>
+          )}
+
+          {adminLoading ? (
+            <div className="skeleton" style={{ height: 120, borderRadius: 8 }} />
+          ) : adminFilteredRows.length === 0 ? (
+            <p className="helper">No attendance records match the current filters.</p>
+          ) : (
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Student</th>
+                  <th>Class</th>
+                  <th>Grade</th>
+                  <th>Status</th>
+                  <th>Recorded by</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {adminFilteredRows.map(r => (
+                  <tr key={r.id}>
+                    <td>{new Date(r.date).toLocaleDateString()}</td>
+                    <td>{r.student_name}</td>
+                    <td>{r.class_name}</td>
+                    <td>{r.grade_level ?? '-'}</td>
+                    <td>{statusBadge(r.status)}</td>
+                    <td>{r.recorded_by ?? '-'}</td>
+                    <td>{r.notes || '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          <p className="helper" style={{ marginTop: 8 }}>
+            Showing up to 1000 records per date range. Narrow the date range if you need to see older history.
+          </p>
+        </div>
+      )}
+
+      {/* Fallback for unknown roles */}
+      {role !== 'teacher' && role !== 'parent' && role !== 'school_admin' && (
         <p className="helper">{t('attendance.parentNote')}</p>
       )}
 
@@ -294,12 +559,12 @@ export default function Attendance() {
         </div>
       )}
 
-      {classesError && (
+      {role === 'teacher' && classesError && (
         <p className="helper" role="status" style={{ color: 'var(--danger)' }}>{classesError}</p>
       )}
 
-      {!selectedClass ? (
-        role === 'teacher' ? <p className="helper">{t('attendance.selectClassPrompt')}</p> : null
+      {role === 'teacher' && (!selectedClass ? (
+        <p className="helper">{t('attendance.selectClassPrompt')}</p>
       ) : loadingStudents ? (
         <ul style={{ listStyle: 'none', padding: 0, display: 'grid', gap: 8 }}>
           {Array.from({ length: 6 }).map((_, i) => (
@@ -347,7 +612,7 @@ export default function Attendance() {
           </tbody>
         </table>
         </>
-      )}
+      ))}
     </div>
   )
 }
