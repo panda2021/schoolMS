@@ -12,6 +12,7 @@ const am: Record<string, string> = {
   'nav.import': '\u1260\u1263\u12DD \u121B\u1235\u1308\u1263\u1275',
   'nav.settings': '\u1240\u1295\u1260\u122B\u12CE\u127D',
   'nav.overview': '\u12A0\u1320\u1243\u120B\u12ED \u12D5\u12ED\u1273',
+  'nav.featureMatrix': '\u12E8\u1263\u1205\u122A \u121B\u1275\u122A\u12AD\u1235',
   'nav.signOut': '\u12CD\u1323',
   'nav.darkMode': '\u1325\u1241\u122D \u121E\u12F5',
   'nav.lightMode': '\u1265\u122D\u1203\u1295 \u121E\u12F5',

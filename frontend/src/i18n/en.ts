@@ -12,6 +12,7 @@ const en: Record<string, string> = {
   'nav.import': 'Bulk Import',
   'nav.settings': 'Settings',
   'nav.overview': 'Overview',
+  'nav.featureMatrix': 'Feature Matrix',
   'nav.signOut': 'Sign out',
   'nav.darkMode': 'Dark mode',
   'nav.lightMode': 'Light mode',

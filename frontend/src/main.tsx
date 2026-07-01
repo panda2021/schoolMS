@@ -6,6 +6,7 @@ import './styles.css'
 import { ThemeProvider } from './ui/theme/ThemeProvider'
 import { LanguageProvider } from './i18n/LanguageProvider'
 import { ToastProvider } from './ui/components/toast/ToastProvider'
+import { FeatureProvider } from './ui/features/FeatureProvider'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
@@ -13,7 +14,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       <ThemeProvider>
         <LanguageProvider>
           <ToastProvider>
-            <App />
+            <FeatureProvider>
+              <App />
+            </FeatureProvider>
           </ToastProvider>
         </LanguageProvider>
       </ThemeProvider>

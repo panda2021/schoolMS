@@ -9,6 +9,7 @@ Phase 1 of the personalization/RBAC plan is in flight. Phases 2-6 deferred per u
 
 ## TL;DR — next 3 things to do
 
+0. **Apply migration `0027_feature_permissions.sql`** in Supabase SQL editor (Phase 2 — see below). Non-breaking: seeds reproduce current behavior. After applying, deploy the frontend and the super-admin gets a new "Feature Matrix" nav item at `/app/features`.
 1. ~~Apply migration `0026`~~ ✅ DONE (user confirmed 2026-06-29). Both 0025 and 0026 now applied.
 2. **Re-link the two orphaned school_admin users** (see "Orphan admin recovery" below). Until they have `school_id` set, the admin attendance view will be empty AND the super-admin edit modal will keep showing "No admin assigned" for their schools.
 3. **Smoke test all three fixes** end-to-end: invite a teacher, reset an admin password, log in as a school_admin and load `/app/attendance`.
@@ -22,6 +23,7 @@ Phase 1 of the personalization/RBAC plan is in flight. Phases 2-6 deferred per u
 |---|---|---|---|
 | 0025 | `fix_invite_consumption.sql` | ✅ (user confirmed) | Fixes `ensure_user_profile()` so the `pending_invitations` SELECT bypasses RLS (`SET row_security = off`), and adds a recovery path for users stuck in the legacy `parent / NULL school` state. Teacher invite link now correctly lands on `/app/teacher`. |
 | 0026 | `fix_admin_reset_password.sql` | ✅ (user confirmed 2026-06-29) | Adds `extensions` to `search_path` in `admin_reset_password` so `crypt()` and `gen_salt()` resolve. Also adds a `NOT FOUND` check so the RPC errors loudly if the target user doesn't exist. |
+| 0027 | `feature_permissions.sql` | ❌ **PENDING** | Phase 2 RBAC framework. Creates `features`, `role_features`, `user_feature_overrides`; adds `user_can(text,uuid)` + `my_features()` SECURITY DEFINER helpers; RLS; seeds the capability catalog and role defaults to reproduce current behavior exactly (non-breaking). |
 
 ### Frontend
 - **`frontend/src/pages/Attendance.tsx`** — new admin branch: date range, class, grade, status, name-search filters, 4 summary tiles, CSV export. Existing teacher / parent branches unchanged. `tsc --noEmit` clean.
@@ -71,9 +73,24 @@ Alternative: use the new "Assign an existing admin" dropdown in `/app/super` edi
 
 ---
 
-## Phase 2-6 plan (deferred)
+## Phase 2 — Feature-permission framework (BUILT 2026-07-01, pending apply+deploy)
 
-Master plan delivered and approved 2026-05-13. Phases 2-6 paused until weekly credits allow. Decisions:
+Implements the RBAC "features matrix". Effective capabilities = role defaults (`role_features`) UNION per-user additive grants (`user_feature_overrides`); super_admin = implicit all; overrides add-only [D3]; homeroom bumps ride on overrides [D4]; fine-grained `feature.action` keys [D6].
+
+Shipped:
+- **`supabase/migrations/0027_feature_permissions.sql`** — tables + `user_can()`/`my_features()` helpers + RLS + seed. Seeds match today's role behavior, so nothing changes until the matrix is edited.
+- **`frontend/src/ui/features/FeatureProvider.tsx`** — `FeatureProvider` context + `useFeature()` hook. Loads `my_features()` once, exposes `can(key | key[])`. Wired into `main.tsx` provider stack. Fails closed (empty set) on error.
+- **`frontend/src/ui/layout/AppShell.tsx`** — non-super nav now gated by `can(...)` instead of hardcoded role checks. Super-admin nav unchanged + gained a "Feature Matrix" link.
+- **`frontend/src/pages/FeatureMatrix.tsx`** + route `/app/features` — super-admin editor for `role_features` (roles × capabilities, grouped, checkbox toggles, optimistic writes). super_admin column shown locked/all. Per-user overrides UI is deferred to Phase 5.
+- i18n key `nav.featureMatrix` (en + am).
+
+Non-breaking design note: parent role defaults were intentionally seeded to communication surfaces only (no students/attendance/grades `.view`), so the capability-gated nav matches today's parent nav exactly. Parents' child-scoped access still runs through existing RLS; Phase 5 adds dedicated child-scoped capabilities when it gates those pages.
+
+Verify after apply+deploy: super-admin sees `/app/features`, can toggle a capability, and the change reflects in that role's nav on next load. Confirm admin/teacher/parent navs are unchanged from before.
+
+## Phase 3-6 plan (deferred)
+
+Master plan delivered and approved 2026-05-13. Phases 3-6 paused until weekly credits allow. Decisions:
 
 - **D1**: Students stay as roster records only (no login). Add parent notifications to nudge per-student check later.
 - **D2**: Stranger login (no invitation) → "Pending approval" screen; admin gets "Pending users" tab to approve.
@@ -99,12 +116,18 @@ See `~/.claude/projects/-Users-eyoel-vibecoding-schoolMS/memory/project_personal
 ```
 supabase/migrations/
   0025_fix_invite_consumption.sql           ← applied
-  0026_fix_admin_reset_password.sql         ← PENDING
+  0026_fix_admin_reset_password.sql         ← applied
+  0027_feature_permissions.sql              ← PENDING (Phase 2 RBAC framework)
 frontend/src/pages/
   Attendance.tsx                            ← admin branch added
-  SuperAdminDashboard.tsx                   ← assign-existing-admin UI + reordered create flow
-frontend/ROUTES.md                          ← new — keep updated when routes change
+  SuperAdminDashboard.tsx                   ← assign-existing-admin UI + reordered create flow + email-taken guard
+  FeatureMatrix.tsx                         ← new — super-admin role×capability editor (/app/features)
+frontend/src/ui/features/
+  FeatureProvider.tsx                       ← new — useFeature() hook (my_features RPC)
+frontend/src/lib/supabaseClient.ts          ← temp client got distinct storageKey
+frontend/src/ui/layout/AppShell.tsx         ← nav gated by capability
+frontend/ROUTES.md                          ← keep updated when routes change
 scripts/
-  diagnose_admin_links.sql                  ← new — orphan-admin investigation
+  diagnose_admin_links.sql                  ← orphan-admin investigation
 RESUME.md                                   ← this file
 ```

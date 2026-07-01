@@ -2,7 +2,9 @@
 
 Authoritative map of every route, role-guard, and redirect call. Update this file when you add a route, change `emailRedirectTo`, or touch `RoleRedirect`. The teacher-invite-link bug existed because nobody had written it down.
 
-Last verified: 2026-05-13 against `App.tsx`, `RoleRedirect.tsx`, `ProtectedLayout.tsx`, `AppShell.tsx`.
+Last verified: 2026-07-01 against `App.tsx`, `RoleRedirect.tsx`, `ProtectedLayout.tsx`, `AppShell.tsx`, `FeatureProvider.tsx`.
+
+**Nav is now capability-gated** (Phase 2). The sidebar in `AppShell.tsx` renders each non-super item via `useFeature().can('<feature.action>')` instead of hardcoded role checks. Capabilities come from the `my_features()` RPC = role defaults (`role_features`) UNION per-user additive grants (`user_feature_overrides`); super_admin gets the whole catalog. Seeded defaults reproduce the pre-Phase-2 nav exactly. This is UI gating only — pages still enforce their own access; migration 0027's `user_can()` will back domain-table RLS in a later phase.
 
 ## Routes
 
@@ -13,6 +15,7 @@ Last verified: 2026-05-13 against `App.tsx`, `RoleRedirect.tsx`, `ProtectedLayou
 | `/app` (parent) | `ui/auth/ProtectedLayout` | **yes** | wraps all `/app/*` children with `RequireAuth` + `AppShell` |
 | `/app` (index) | `ui/auth/RoleRedirect` | yes | redirects to role-specific dashboard — see flow below |
 | `/app/super` | `pages/SuperAdminDashboard` | yes | **no route guard**; page-level role check inside component |
+| `/app/features` | `pages/FeatureMatrix` | yes | page-level super_admin check; edits `role_features` default matrix |
 | `/app/admin` | `pages/AdminDashboard` | yes | no route guard; page-level check |
 | `/app/teacher` | `pages/TeacherDashboard` | yes | no route guard; page-level check |
 | `/app/parent` | `pages/ParentDashboard` | yes | no route guard; page-level check |
@@ -107,7 +110,7 @@ Identical to Flow 2, but the invitation `role_key` is `parent`, so the RPC write
 ## Adding a new route — checklist
 
 - Add the `<Route>` in `App.tsx`.
-- Add the nav entry in `ui/layout/AppShell.tsx` under the correct role gate.
+- Add the nav entry in `ui/layout/AppShell.tsx` gated by the appropriate `can('<feature.action>')` (or under the super-admin branch). If the page needs a new capability, add it to migration 0027's `features` catalog + `role_features` seed.
 - Add a row to the table at the top of this doc.
 - If the page has any role-specific branches, document them in the "Role gating" column.
 - If the page is reached from an external link (invite email, password reset link, etc.) — add a Flow section here.

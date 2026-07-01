@@ -16,6 +16,7 @@ import Grades from '@/pages/Grades'
 import ReportCards from '@/pages/ReportCards'
 import Teachers from '@/pages/Teachers'
 import Helpdesk from '@/pages/Helpdesk'
+import FeatureMatrix from '@/pages/FeatureMatrix'
 import ProtectedLayout from '@/ui/auth/ProtectedLayout'
 import RoleRedirect from '@/ui/auth/RoleRedirect'
 import AdminDashboard from '@/pages/AdminDashboard'
@@ -34,6 +35,7 @@ export default function App() {
       <Route path="/app" element={<ProtectedLayout />}>
         <Route index element={<RoleRedirect />} />
         <Route path="super" element={<SuperAdminDashboard />} />
+        <Route path="features" element={<FeatureMatrix />} />
         <Route path="admin" element={<AdminDashboard />} />
         <Route path="teacher" element={<TeacherDashboard />} />
         <Route path="parent" element={<ParentDashboard />} />
