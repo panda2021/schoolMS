@@ -67,9 +67,24 @@ const en: Record<string, string> = {
   'login.passwordPlaceholder': 'Enter your password',
   'login.signInBtn': 'Sign In',
   'login.sendMagicLink': 'Send Magic Link',
-  'login.forgotPassword': "Don't remember your password? Switch to Magic Link.",
+  'login.forgotPassword': 'Forgot your password?',
+  'login.sendResetLink': 'Send reset link',
+  'login.enterEmailFirst': 'Enter your email above first.',
+  'login.resetEmailSent': 'Password reset link sent. Check your email.',
   'login.magicLinkHint': "We'll email you a secure link to sign in instantly.",
   'login.checkEmail': 'Check your email for the login link!',
+
+  // Password reset page
+  'reset.title': 'Set a new password',
+  'reset.subtitle': 'Choose a new password for your account.',
+  'reset.noSession': 'This reset link is invalid or has expired. Request a new one from the login page.',
+  'reset.backToLogin': 'Back to login',
+  'reset.newPassword': 'New password',
+  'reset.confirmPassword': 'Confirm password',
+  'reset.submit': 'Update password',
+  'reset.tooShort': 'Password must be at least 6 characters.',
+  'reset.mismatch': 'Passwords do not match.',
+  'reset.success': 'Password updated. Taking you to the app…',
 
   // Account Inactive
   'inactive.suspended.title': 'Account Suspended',

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { useToast } from '@/ui/components/toast/ToastProvider'
 import { LoadingSpinner } from '@/ui/components/LoadingSpinner'
@@ -32,6 +32,11 @@ export default function Teachers() {
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteName, setInviteName] = useState('')
   const [inviting, setInviting] = useState(false)
+
+  // Password reset (per-row)
+  const [resetTarget, setResetTarget] = useState<string | null>(null) // user_id
+  const [resetValue, setResetValue] = useState('')
+  const [resetting, setResetting] = useState(false)
 
   const init = async () => {
     setLoading(true)
@@ -122,6 +127,21 @@ export default function Teachers() {
     else { show('Teacher deactivated', 'success'); if (schoolId) await reload(schoolId) }
   }
 
+  const resetTeacherPassword = async () => {
+    if (!resetTarget || resetValue.length < 6) return
+    setResetting(true)
+    const { error } = await supabase.rpc('admin_reset_password', {
+      target_user_id: resetTarget,
+      new_password: resetValue,
+    })
+    if (error) show(error.message, 'error')
+    else {
+      show('Password updated. Share it with the teacher securely.', 'success')
+      setResetTarget(null); setResetValue('')
+    }
+    setResetting(false)
+  }
+
   const reactivate = async (teacherId: string) => {
     const { error } = await supabase.from('teachers').update({ deleted_at: null }).eq('id', teacherId)
     if (error) show(error.message, 'error')
@@ -210,22 +230,59 @@ export default function Teachers() {
             </thead>
             <tbody>
               {teachers.map(t => (
-                <tr key={t.teacher_id}>
-                  <td style={{ fontWeight: 500 }}>{t.full_name ?? '—'}</td>
-                  <td>{t.email ?? '—'}</td>
-                  <td>
-                    {t.active
-                      ? <span className="badge badge-success">Active</span>
-                      : <span className="badge">Inactive</span>}
-                  </td>
-                  <td>
-                    {t.active ? (
-                      <button className="btn btn-ghost" style={{ padding: '4px 8px', fontSize: 13, color: '#dc2626' }} onClick={() => deactivate(t.teacher_id, t.full_name)}>Deactivate</button>
-                    ) : (
-                      <button className="btn btn-ghost" style={{ padding: '4px 8px', fontSize: 13, color: 'var(--primary)' }} onClick={() => reactivate(t.teacher_id)}>Reactivate</button>
-                    )}
-                  </td>
-                </tr>
+                <Fragment key={t.teacher_id}>
+                  <tr>
+                    <td style={{ fontWeight: 500 }}>{t.full_name ?? '—'}</td>
+                    <td>{t.email ?? '—'}</td>
+                    <td>
+                      {t.active
+                        ? <span className="badge badge-success">Active</span>
+                        : <span className="badge">Inactive</span>}
+                    </td>
+                    <td>
+                      {t.active ? (
+                        <div style={{ display: 'flex', gap: 4 }}>
+                          <button
+                            className="btn btn-ghost"
+                            style={{ padding: '4px 8px', fontSize: 13, color: 'var(--primary)' }}
+                            onClick={() => {
+                              setResetValue('')
+                              setResetTarget(resetTarget === t.user_id ? null : t.user_id)
+                            }}
+                          >
+                            {resetTarget === t.user_id ? 'Cancel' : 'Reset password'}
+                          </button>
+                          <button className="btn btn-ghost" style={{ padding: '4px 8px', fontSize: 13, color: '#dc2626' }} onClick={() => deactivate(t.teacher_id, t.full_name)}>Deactivate</button>
+                        </div>
+                      ) : (
+                        <button className="btn btn-ghost" style={{ padding: '4px 8px', fontSize: 13, color: 'var(--primary)' }} onClick={() => reactivate(t.teacher_id)}>Reactivate</button>
+                      )}
+                    </td>
+                  </tr>
+                  {resetTarget === t.user_id && (
+                    <tr>
+                      <td colSpan={4} style={{ background: 'var(--bg)' }}>
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '4px 0' }}>
+                          <input
+                            type="password"
+                            value={resetValue}
+                            onChange={e => setResetValue(e.target.value)}
+                            placeholder="New password (min 6 chars)"
+                            style={{ maxWidth: 260 }}
+                            autoFocus
+                          />
+                          <button
+                            className="btn btn-secondary"
+                            onClick={resetTeacherPassword}
+                            disabled={resetting || resetValue.length < 6}
+                          >
+                            {resetting ? <><LoadingSpinner size="sm" /> Updating…</> : 'Set new password'}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
               ))}
             </tbody>
           </table>

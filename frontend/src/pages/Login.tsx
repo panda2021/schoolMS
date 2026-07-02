@@ -27,6 +27,21 @@ export default function Login() {
     setLoading(false)
   }
 
+  const forgotPassword = async () => {
+    if (!email.trim()) {
+      setMessage({ text: t('login.enterEmailFirst'), type: 'error' })
+      return
+    }
+    setLoading(true)
+    setMessage(null)
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: `${window.location.origin}/reset-password`,
+    })
+    if (error) setMessage({ text: error.message, type: 'error' })
+    else setMessage({ text: t('login.resetEmailSent'), type: 'success' })
+    setLoading(false)
+  }
+
   const magicLink = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -146,10 +161,24 @@ export default function Login() {
           )}
 
           <div className="login-footer-text">
-            {mode === 'password'
-              ? t('login.forgotPassword')
-              : t('login.magicLinkHint')
-            }
+            {mode === 'password' ? (
+              <>
+                {t('login.forgotPassword')}{' '}
+                <button
+                  type="button"
+                  onClick={forgotPassword}
+                  disabled={loading}
+                  style={{
+                    background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                    color: 'var(--primary)', font: 'inherit', textDecoration: 'underline',
+                  }}
+                >
+                  {t('login.sendResetLink')}
+                </button>
+              </>
+            ) : (
+              t('login.magicLinkHint')
+            )}
           </div>
         </div>
       </div>

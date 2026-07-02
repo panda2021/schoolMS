@@ -1,18 +1,25 @@
-# RESUME — Phase 1 bug fixes (school_admin orphans, attendance, invite link, PW reset)
+# RESUME — ABOGIDA/FIDEL school management app handoff
 
-**Last worked on**: 2026-05-21
+**Last worked on**: 2026-07-02
 **Branch**: `main` (run `git status` before resuming)
 
-Phase 1 of the personalization/RBAC plan is in flight. Phases 2-6 deferred per user (credits). All decisions (D1-D6) are locked in memory at `project_personalization_decisions.md`.
+All decisions (D1-D6) locked in memory at `project_personalization_decisions.md`.
+**Also read `docs/PROGRESS.md`** — append-only changelog of every major step.
 
----
+## Session snapshot (2026-07-02, in progress)
 
-## TL;DR — next 3 things to do
+- **Applied in Supabase**: 0025, 0026, 0027, 0028 (user confirmed 2026-07-02). `0029_staff_reset_password.sql` written, NOT yet applied.
+- **Orphaned school_admins**: re-linked by user (2026-07-02). Resolved.
+- **Phases 1-3 committed**: `5e3be0c` (Phase 1), `020ff52` (admin-creation fix), `a9f4a0f` (Phase 2), `0bdc7ea` (Phase 3).
+- **Uncommitted in working tree (this session)**: 0029 migration, teacher reset-password UI (Teachers.tsx), self-serve forgot-password (Login.tsx + new ResetPassword.tsx + App.tsx route + i18n en/am + ROUTES.md flows 7-8), docs/PROGRESS.md, this file.
+- **Active roadmap this session** (user request): 1. UI overhaul of dashboards (landing page stays), 2. finish phases 4-6, 3. initial testing pass, 4. fix the parent-student model (audited — see PROGRESS.md 2026-07-02 entry for the 5 gaps; headline: no "Invite parent" UI exists and no-invite logins create ghost parent accounts), 5. document every step.
 
-0. **Apply migrations `0027_feature_permissions.sql` (Phase 2) and `0028_school_branding.sql` (Phase 3)** in the Supabase SQL editor, in order. Both non-breaking. Then deploy the frontend: super-admin gets a "Feature Matrix" nav item at `/app/features`, and the edit-school modal gains a Branding section.
-1. ~~Apply migration `0026`~~ ✅ DONE (user confirmed 2026-06-29). Both 0025 and 0026 now applied.
-2. **Re-link the two orphaned school_admin users** (see "Orphan admin recovery" below). Until they have `school_id` set, the admin attendance view will be empty AND the super-admin edit modal will keep showing "No admin assigned" for their schools.
-3. **Smoke test all three fixes** end-to-end: invite a teacher, reset an admin password, log in as a school_admin and load `/app/attendance`.
+## TL;DR — next things to do
+
+1. **User: apply `0029_staff_reset_password.sql`** in the Supabase SQL editor, commit + push, redeploy.
+2. **Test password resets**: super-admin → school-admin (edit-school modal), school-admin → teacher (/app/teachers), self-serve forgot-password from /login.
+3. **Parent-student model fix** — design agreed with user, then implement (invite-parent UI + pending-approval flow per D2).
+4. **UI overhaul** of the four dashboards + Phase 4 curriculum editor + Phase 5 gating.
 
 ---
 
@@ -23,8 +30,9 @@ Phase 1 of the personalization/RBAC plan is in flight. Phases 2-6 deferred per u
 |---|---|---|---|
 | 0025 | `fix_invite_consumption.sql` | ✅ (user confirmed) | Fixes `ensure_user_profile()` so the `pending_invitations` SELECT bypasses RLS (`SET row_security = off`), and adds a recovery path for users stuck in the legacy `parent / NULL school` state. Teacher invite link now correctly lands on `/app/teacher`. |
 | 0026 | `fix_admin_reset_password.sql` | ✅ (user confirmed 2026-06-29) | Adds `extensions` to `search_path` in `admin_reset_password` so `crypt()` and `gen_salt()` resolve. Also adds a `NOT FOUND` check so the RPC errors loudly if the target user doesn't exist. |
-| 0027 | `feature_permissions.sql` | ❌ **PENDING** | Phase 2 RBAC framework. Creates `features`, `role_features`, `user_feature_overrides`; adds `user_can(text,uuid)` + `my_features()` SECURITY DEFINER helpers; RLS; seeds the capability catalog and role defaults to reproduce current behavior exactly (non-breaking). |
-| 0028 | `school_branding.sql` | ❌ **PENDING** | Phase 3 branding. Adds `logo_url`, `primary_color`, `secondary_color`, `bg_image_url`, `bg_opacity` to `schools`; creates a public `branding` storage bucket; adds storage.objects write policies (super_admin any folder, school_admin own `<school_id>/` folder). |
+| 0027 | `feature_permissions.sql` | ✅ (user confirmed 2026-07-02) | Phase 2 RBAC framework. Creates `features`, `role_features`, `user_feature_overrides`; adds `user_can(text,uuid)` + `my_features()` SECURITY DEFINER helpers; RLS; seeds the capability catalog and role defaults to reproduce current behavior exactly (non-breaking). |
+| 0028 | `school_branding.sql` | ✅ (user confirmed 2026-07-02) | Phase 3 branding. Adds `logo_url`, `primary_color`, `secondary_color`, `bg_image_url`, `bg_opacity` to `schools`; creates a public `branding` storage bucket; adds storage.objects write policies (super_admin any folder, school_admin own `<school_id>/` folder). |
+| 0029 | `staff_reset_password.sql` | ❌ **PENDING** | Adds `users.reset_password` capability (seeded to school_admin) and widens `admin_reset_password`: super_admin → anyone; capability holders → teachers/parents in own school. |
 
 ### Frontend
 - **`frontend/src/pages/Attendance.tsx`** — new admin branch: date range, class, grade, status, name-search filters, 4 summary tiles, CSV export. Existing teacher / parent branches unchanged. `tsc --noEmit` clean.
@@ -132,8 +140,9 @@ See `~/.claude/projects/-Users-eyoel-vibecoding-schoolMS/memory/project_personal
 supabase/migrations/
   0025_fix_invite_consumption.sql           ← applied
   0026_fix_admin_reset_password.sql         ← applied
-  0027_feature_permissions.sql              ← PENDING (Phase 2 RBAC framework)
-  0028_school_branding.sql                  ← PENDING (Phase 3 branding + storage bucket)
+  0027_feature_permissions.sql              ← applied (Phase 2 RBAC framework)
+  0028_school_branding.sql                  ← applied (Phase 3 branding + storage bucket)
+  0029_staff_reset_password.sql             ← PENDING (school_admin resets teacher/parent passwords)
 frontend/src/pages/
   Attendance.tsx                            ← admin branch added
   SuperAdminDashboard.tsx                   ← assign-existing-admin UI + email-taken guard + branding editor

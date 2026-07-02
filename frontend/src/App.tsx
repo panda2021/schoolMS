@@ -1,6 +1,7 @@
 import { Route, Routes, Navigate } from 'react-router-dom'
 import Landing from './pages/Landing'
 import Login from '@/pages/Login'
+import ResetPassword from '@/pages/ResetPassword'
 import Dashboard from '@/pages/Dashboard'
 import Attendance from '@/pages/Attendance'
 import Updates from '@/pages/Updates'
@@ -30,6 +31,7 @@ export default function App() {
       {/* Public routes */}
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
 
       {/* Protected app routes under /app */}
       <Route path="/app" element={<ProtectedLayout />}>

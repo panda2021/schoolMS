@@ -12,6 +12,7 @@ Last verified: 2026-07-01 against `App.tsx`, `RoleRedirect.tsx`, `ProtectedLayou
 |---|---|---|---|
 | `/` | `pages/Landing` | no | public |
 | `/login` | `pages/Login` | no | public |
+| `/reset-password` | `pages/ResetPassword` | no* | public route, but the form only works with the temporary session from a Supabase recovery link (`resetPasswordForEmail` → email → here). Without one it shows "invalid/expired link". |
 | `/app` (parent) | `ui/auth/ProtectedLayout` | **yes** | wraps all `/app/*` children with `RequireAuth` + `AppShell` |
 | `/app` (index) | `ui/auth/RoleRedirect` | yes | redirects to role-specific dashboard — see flow below |
 | `/app/super` | `pages/SuperAdminDashboard` | yes | **no route guard**; page-level role check inside component |
@@ -50,6 +51,8 @@ Last verified: 2026-07-01 against `App.tsx`, `RoleRedirect.tsx`, `ProtectedLayou
 | `ui/auth/RoleRedirect.tsx:30` | `navigate('/app/parent')` | parent dashboard | role match |
 | `ui/auth/RoleRedirect.tsx:31` | `navigate('/app/parent')` | parent dashboard | **fallback** when role is empty or unknown |
 | `pages/Login.tsx` | `navigate('/app')` | `/app` (→ RoleRedirect) | successful login |
+| `pages/Login.tsx` (`forgotPassword`) | `resetPasswordForEmail({ redirectTo: '${origin}/reset-password' })` | `/reset-password` | user clicks "Send reset link" |
+| `pages/ResetPassword.tsx` | `navigate('/app', { replace })` | `/app` (→ RoleRedirect) | password updated successfully |
 | `pages/Teachers.tsx` (`inviteTeacher`) | `signInWithOtp({ emailRedirectTo: '${origin}/app' })` | `/app` (→ RoleRedirect) | admin sends teacher invite |
 | `pages/SuperAdminDashboard.tsx` (`createSchool`) | server-side create + redirect after success | local refresh | super-admin creates new school |
 
@@ -106,6 +109,21 @@ Identical to Flow 2, but the invitation `role_key` is `parent`, so the RPC write
 3. RPC (post-migration 0026) writes `auth.users.encrypted_password = crypt(new_password, gen_salt('bf'))`.
 
 **Historic bug (fixed in 0026):** the RPC's `search_path` was `public` only, so `crypt`/`gen_salt` from pgcrypto (which lives in `extensions`) was unresolvable. The frontend showed a success toast because the RPC's `void` return masked the error. Fix: extend `search_path` to `public, extensions`.
+
+### Flow 7: School admin resets a teacher's password (post-migration 0029)
+
+1. School admin opens `/app/teachers`, clicks "Reset password" on an active teacher row.
+2. Inline input appears; admin types a new password (min 6 chars) and confirms.
+3. Frontend calls the same `supabase.rpc('admin_reset_password', ...)` RPC.
+4. RPC guard (0029): super_admin → any user; holder of `users.reset_password` capability (school_admin by default) → teachers/parents in their own school only. Everyone else rejected.
+
+### Flow 8: Self-serve "Forgot password"
+
+1. On `/login` (password tab), user enters their email and clicks "Send reset link".
+2. Frontend calls `supabase.auth.resetPasswordForEmail(email, { redirectTo: '${origin}/reset-password' })`.
+3. Supabase emails a recovery link; clicking it opens `/reset-password` with a temporary session.
+4. `pages/ResetPassword.tsx` lets the user set a new password via `supabase.auth.updateUser({ password })`, then navigates to `/app` (→ RoleRedirect).
+5. If the page is opened without a recovery session (expired/invalid link), it shows an error + link back to `/login`.
 
 ## Adding a new route — checklist
 
