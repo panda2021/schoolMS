@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { useToast } from '@/ui/components/toast/ToastProvider'
+import { useFeature } from '@/ui/features/FeatureProvider'
 import { LoadingSpinner } from '@/ui/components/LoadingSpinner'
 import { FileUpload } from '@/ui/components/FileUpload'
 import { ParentMultiSelect } from '@/ui/components/ParentMultiSelect'
@@ -28,6 +29,7 @@ const PAGE_SIZE = 10
 export default function Announcements() {
   const { t } = useLanguage()
   const { show } = useToast()
+  const { can } = useFeature()
   const [role, setRole] = useState<Role | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
   const [schoolId, setSchoolId] = useState<string | null>(null)
@@ -47,7 +49,7 @@ export default function Announcements() {
   const [saving, setSaving] = useState(false)
   const [lastAnnouncementId, setLastAnnouncementId] = useState<string | null>(null)
 
-  const canPost = role === 'school_admin' || role === 'teacher'
+  const canPost = (role === 'school_admin' || role === 'teacher') && can('announcements.post')
 
   const loadAnnouncements = async (p: number) => {
     const { data, error } = await supabase
@@ -310,7 +312,7 @@ export default function Announcements() {
                       <span className="helper">{new Date(a.created_at).toLocaleDateString()}</span>
                     </div>
                   </div>
-                  {(a.created_by === userId || role === 'school_admin') && (
+                  {(a.created_by === userId || (role === 'school_admin' && can('announcements.delete'))) && (
                     <button className="btn btn-ghost" style={{ padding: '4px 8px', fontSize: 13, color: '#dc2626' }} onClick={() => handleDelete(a.id)}>{t('common.delete')}</button>
                   )}
                 </div>

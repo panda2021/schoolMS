@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import * as XLSX from 'xlsx'
 import { supabase } from '@/lib/supabaseClient'
 import { useToast } from '@/ui/components/toast/ToastProvider'
+import { useFeature } from '@/ui/features/FeatureProvider'
 import { LoadingSpinner } from '@/ui/components/LoadingSpinner'
 import { useLanguage } from '@/i18n/LanguageProvider'
 
@@ -15,6 +16,7 @@ const CLASS_COLUMNS = ['name', 'grade_level', 'teacher_name']
 
 export default function BulkImport() {
   const { show } = useToast()
+  const { can } = useFeature()
   const { t } = useLanguage()
   const [role, setRole] = useState<string | null>(null)
   const [schoolId, setSchoolId] = useState<string | null>(null)
@@ -199,7 +201,7 @@ export default function BulkImport() {
   const rowErrors = (rowIdx: number) => errors.filter(e => e.row === rowIdx)
   const hasBlockingErrors = errors.some(e => ['first_name', 'last_name', 'name'].includes(e.field))
 
-  if (role !== 'school_admin') {
+  if (role !== 'school_admin' || !can('import.use')) {
     return (
       <div className="card">
         <h2 style={{ marginTop: 0 }}>{t('import.title')}</h2>

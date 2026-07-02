@@ -13,6 +13,54 @@ Conventions used below:
 
 ## 2026-07-02 — Session: password resets, parent-model audit, roadmap restart
 
+### Done: blocking error dialogs + Phase 5 (capability gating + per-user overrides)
+**Error UX (user request):** `ToastProvider` split — `show(msg, 'error')` now
+renders a blocking alert dialog (OK / X / Esc / backdrop) that stays until
+dismissed; multiple errors queue with a "N more issues" hint. success/info stay
+transient toasts. One change covers the whole app since every page uses
+`useToast().show`.
+
+**Phase 5:**
+- **`supabase/migrations/0031_phase5_capabilities.sql`** (NOT YET APPLIED):
+  - `children.attendance.view` — first child-scoped parent capability, seeded
+    to parent. Parents now get an Attendance nav item (their branch of the
+    page); data access was already parent_students-RLS-scoped.
+  - `users.manage_permissions` — gates the overrides editor UI, seeded to
+    school_admin (0027's RLS already allowed same-school admins to write
+    user_feature_overrides).
+  - Seed correction: teacher loses `classes.create`/`classes.edit` role
+    defaults — the UI was always admin-only there; the matrix must not lie.
+- **`frontend/src/ui/features/UserOverridesModal.tsx`** (NEW): per-user
+  add-only permission editor (D3/D4). Full catalog grouped by feature;
+  role-default caps shown checked+locked ("role" badge); extras toggle
+  user_feature_overrides rows ("extra" badge). Wired into Teachers page
+  ("Permissions" per active teacher) and Parents page (manage panel).
+  This is the D4 homeroom-teacher bump mechanism.
+- **Gating sweep** (pattern: `role check && can('cap')` so the matrix can
+  RESTRICT below role defaults; purely-additive grants only fully work where
+  RLS already permits — noted below):
+  - BulkImport page: + `import.use`; ReportCards page: + `report_cards.view`
+  - Updates post: + `updates.post`; Announcements post/delete: +
+    `announcements.post`/`.delete`
+  - Classes create/edit/delete buttons: + `classes.create/.edit/.delete`
+  - Attendance: parent branch + `children.attendance.view`; admin CSV export
+    + `attendance.export`; nav item now `can(['attendance.view',
+    'children.attendance.view'])`
+  - Teachers page: invite + `teachers.invite`, deactivate/reactivate +
+    `teachers.delete`, reset + `users.reset_password`, permissions button +
+    `users.manage_permissions`; Parents page: same pattern with `parents.*`
+- **Known limitation (future "Phase 5b")**: granting a capability to a user
+  whose ROLE the domain-table RLS doesn't allow (e.g. teacher + import.use)
+  shows the UI but DB writes fail — moving domain RLS onto `user_can()` is the
+  deliberate next deep step, anticipated in 0027's header comment. Grants that
+  DO fully work today: `users.reset_password` (RPC checks user_can
+  server-side), `users.manage_permissions`, `children.attendance.view`, and
+  any within-role restriction.
+- FeatureMatrix auto-includes the new keys (loads catalog from DB);
+  EDITABLE_ROLES is hardcoded so the 'pending' role never shows as a column.
+- Typecheck + build clean.
+- USER MUST: apply 0031, commit + push, redeploy.
+
 ### Done: 0030 applied + deployed (user confirmed); Phase 4 curriculum editor (code complete, NO migration needed)
 - User applied `0030_parent_invites_and_pending.sql` and pushed/redeployed the
   frontend with the parent-model fix + UI overhaul.

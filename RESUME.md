@@ -8,18 +8,18 @@ All decisions (D1-D6) locked in memory at `project_personalization_decisions.md`
 
 ## Session snapshot (2026-07-02, in progress)
 
-- **Applied in Supabase**: 0025-0030 all applied (0030 confirmed 2026-07-02). No migrations pending.
+- **Applied in Supabase**: 0025-0030 applied. `0031_phase5_capabilities.sql` written, NOT yet applied.
 - **Orphaned school_admins**: re-linked by user (2026-07-02). Resolved.
 - **Phases 1-3 committed**: `5e3be0c` (Phase 1), `020ff52` (admin-creation fix), `a9f4a0f` (Phase 2), `0bdc7ea` (Phase 3). Password-reset work (0029 + UI) deployed 2026-07-02.
 - **Deployed through**: parent-model fix + UI overhaul (user pushed 2026-07-02).
-- **Uncommitted in working tree (this session)**: Phase 4 curriculum editor (Settings.tsx inline subject edit/delete), docs updates.
-- **Active roadmap** (user request 2026-07-02): parent model fix (deployed) → UI overhaul (deployed) → Phase 4 curriculum editor (done, code) → Phase 5 gating/overrides (next) → testing pass. Document everything in docs/PROGRESS.md.
+- **Uncommitted in working tree (this session)**: Phase 4 (Settings.tsx subject editing) + error-dialog ToastProvider + Phase 5 (0031 migration, UserOverridesModal, capability gating sweep across BulkImport/ReportCards/Updates/Announcements/Classes/Attendance/Teachers/Parents, AppShell attendance nav). See docs/PROGRESS.md.
+- **All build phases (1-5) are now code-complete.** Remaining: apply 0031, deploy, end-to-end testing pass, and the deferred deep step ("Phase 5b": move domain-table RLS onto user_can() so additive per-user grants work beyond UI surfaces).
 
 ## TL;DR — next things to do
 
-1. **User: commit + push Phase 4** (no Supabase migration needed).
-2. **Test**: parent flows (invite w/ students, uninvited → pending → approve), password resets, new UI in light/dark/branded, and subject editing (Settings → Subjects → pencil icon: rename, change grades, delete a default subject).
-3. **Phase 5**: gate remaining pages via useFeature, per-user overrides UI, child-scoped parent capabilities.
+1. **User: apply `0031_phase5_capabilities.sql`**, commit + push, redeploy.
+2. **Test** (full checklist in PROGRESS.md): parent flows, password resets, error dialog (trigger any error — must stay until OK), subject editing, per-user "Permissions" modal on Teachers page, parent Attendance nav item, matrix toggles actually hiding buttons.
+3. Deferred: Phase 5b (RLS onto user_can()), Phase 6 (student-as-user, only if D1 flips), landing-page-time branding via subdomain.
 
 ---
 
@@ -33,7 +33,8 @@ All decisions (D1-D6) locked in memory at `project_personalization_decisions.md`
 | 0027 | `feature_permissions.sql` | ✅ (user confirmed 2026-07-02) | Phase 2 RBAC framework. Creates `features`, `role_features`, `user_feature_overrides`; adds `user_can(text,uuid)` + `my_features()` SECURITY DEFINER helpers; RLS; seeds the capability catalog and role defaults to reproduce current behavior exactly (non-breaking). |
 | 0028 | `school_branding.sql` | ✅ (user confirmed 2026-07-02) | Phase 3 branding. Adds `logo_url`, `primary_color`, `secondary_color`, `bg_image_url`, `bg_opacity` to `schools`; creates a public `branding` storage bucket; adds storage.objects write policies (super_admin any folder, school_admin own `<school_id>/` folder). |
 | 0029 | `staff_reset_password.sql` | ✅ (user confirmed 2026-07-02) | Adds `users.reset_password` capability (seeded to school_admin) and widens `admin_reset_password`: super_admin → anyone; capability holders → teachers/parents in own school. |
-| 0030 | `parent_invites_and_pending.sql` | ❌ **PENDING** | Parent-model fix: invitations carry `student_ids`+`relation` (auto-link at first login); uninvited sign-ins become role `'pending'` (D2) with approve/reject RPCs; ghosts migrated; `parents.*` capabilities; relation CHECK. |
+| 0030 | `parent_invites_and_pending.sql` | ✅ (user confirmed 2026-07-02) | Parent-model fix: invitations carry `student_ids`+`relation` (auto-link at first login); uninvited sign-ins become role `'pending'` (D2) with approve/reject RPCs; ghosts migrated; `parents.*` capabilities; relation CHECK. |
+| 0031 | `phase5_capabilities.sql` | ❌ **PENDING** | Phase 5: `children.attendance.view` (seeded to parent), `users.manage_permissions` (seeded to school_admin), removes teacher `classes.create/edit` seeds to match the UI. |
 
 ### Frontend
 - **`frontend/src/pages/Attendance.tsx`** — new admin branch: date range, class, grade, status, name-search filters, 4 summary tiles, CSV export. Existing teacher / parent branches unchanged. `tsc --noEmit` clean.

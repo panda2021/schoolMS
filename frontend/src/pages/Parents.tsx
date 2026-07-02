@@ -2,6 +2,8 @@ import { Fragment, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { useToast } from '@/ui/components/toast/ToastProvider'
 import { LoadingSpinner } from '@/ui/components/LoadingSpinner'
+import { useFeature } from '@/ui/features/FeatureProvider'
+import { UserOverridesModal } from '@/ui/features/UserOverridesModal'
 
 interface StudentLite {
   id: string
@@ -36,6 +38,7 @@ const RELATIONS = ['mother', 'father', 'guardian', 'other'] as const
 
 export default function Parents() {
   const { show } = useToast()
+  const { can } = useFeature()
   const [loading, setLoading] = useState(true)
   const [role, setRole] = useState<string | null>(null)
   const [schoolId, setSchoolId] = useState<string | null>(null)
@@ -59,6 +62,9 @@ export default function Parents() {
   const [linkRelation, setLinkRelation] = useState<string>('guardian')
   const [resetValue, setResetValue] = useState('')
   const [busy, setBusy] = useState(false)
+
+  // Per-user extra permissions (Phase 5)
+  const [permTarget, setPermTarget] = useState<{ userId: string; name: string } | null>(null)
 
   const init = async () => {
     setLoading(true)
@@ -221,7 +227,7 @@ export default function Parents() {
       <div className="card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <h2 style={{ margin: 0 }}>Parents</h2>
-          {!showInvite && (
+          {!showInvite && can('parents.invite') && (
             <button className="btn btn-primary" onClick={() => setShowInvite(true)}>+ Invite parent</button>
           )}
         </div>
@@ -355,60 +361,79 @@ export default function Parents() {
                             ) : p.children.map(c => (
                               <div key={c.student_id} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                                 <span>{c.first_name} {c.last_name}{c.relation ? ` — ${c.relation}` : ''}</span>
-                                <button
-                                  className="btn btn-ghost"
-                                  style={{ padding: '2px 6px', fontSize: 12, color: '#dc2626' }}
-                                  disabled={busy}
-                                  onClick={() => unlinkStudent(p.parent_id, c.student_id, `${c.first_name} ${c.last_name}`)}
-                                >
-                                  Unlink
-                                </button>
+                                {can('parents.edit') && (
+                                  <button
+                                    className="btn btn-ghost"
+                                    style={{ padding: '2px 6px', fontSize: 12, color: 'var(--danger)' }}
+                                    disabled={busy}
+                                    onClick={() => unlinkStudent(p.parent_id, c.student_id, `${c.first_name} ${c.last_name}`)}
+                                  >
+                                    Unlink
+                                  </button>
+                                )}
                               </div>
                             ))}
                           </div>
 
                           {/* Link a student */}
-                          <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-                            <div>
-                              <label className="helper">Link a student</label>
-                              <select value={linkStudentId} onChange={e => setLinkStudentId(e.target.value)} style={{ minWidth: 200 }}>
-                                <option value="">Select student…</option>
-                                {students
-                                  .filter(s => !p.children.some(c => c.student_id === s.id))
-                                  .map(s => <option key={s.id} value={s.id}>{studentName(s)}</option>)}
-                              </select>
+                          {can('parents.edit') && (
+                            <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                              <div>
+                                <label className="helper">Link a student</label>
+                                <select value={linkStudentId} onChange={e => setLinkStudentId(e.target.value)} style={{ minWidth: 200 }}>
+                                  <option value="">Select student…</option>
+                                  {students
+                                    .filter(s => !p.children.some(c => c.student_id === s.id))
+                                    .map(s => <option key={s.id} value={s.id}>{studentName(s)}</option>)}
+                                </select>
+                              </div>
+                              <div>
+                                <label className="helper">Relation</label>
+                                <select value={linkRelation} onChange={e => setLinkRelation(e.target.value)}>
+                                  {RELATIONS.map(r => <option key={r} value={r}>{r[0].toUpperCase() + r.slice(1)}</option>)}
+                                </select>
+                              </div>
+                              <button className="btn btn-secondary" disabled={busy || !linkStudentId} onClick={() => linkStudent(p.parent_id)}>
+                                Link
+                              </button>
                             </div>
-                            <div>
-                              <label className="helper">Relation</label>
-                              <select value={linkRelation} onChange={e => setLinkRelation(e.target.value)}>
-                                {RELATIONS.map(r => <option key={r} value={r}>{r[0].toUpperCase() + r.slice(1)}</option>)}
-                              </select>
-                            </div>
-                            <button className="btn btn-secondary" disabled={busy || !linkStudentId} onClick={() => linkStudent(p.parent_id)}>
-                              Link
-                            </button>
-                          </div>
+                          )}
 
                           {/* Password reset */}
-                          <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-                            <div>
-                              <label className="helper">Reset password</label>
-                              <input
-                                type="password"
-                                value={resetValue}
-                                onChange={e => setResetValue(e.target.value)}
-                                placeholder="New password (min 6 chars)"
-                                style={{ maxWidth: 240 }}
-                              />
+                          {can('users.reset_password') && (
+                            <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                              <div>
+                                <label className="helper">Reset password</label>
+                                <input
+                                  type="password"
+                                  value={resetValue}
+                                  onChange={e => setResetValue(e.target.value)}
+                                  placeholder="New password (min 6 chars)"
+                                  style={{ maxWidth: 240 }}
+                                />
+                              </div>
+                              <button
+                                className="btn btn-secondary"
+                                disabled={busy || resetValue.length < 6}
+                                onClick={() => resetParentPassword(p.user_id)}
+                              >
+                                Set new password
+                              </button>
                             </div>
-                            <button
-                              className="btn btn-secondary"
-                              disabled={busy || resetValue.length < 6}
-                              onClick={() => resetParentPassword(p.user_id)}
-                            >
-                              Set new password
-                            </button>
-                          </div>
+                          )}
+
+                          {/* Extra permissions */}
+                          {can('users.manage_permissions') && (
+                            <div>
+                              <button
+                                className="btn btn-ghost"
+                                style={{ padding: '4px 8px', fontSize: 13, color: 'var(--primary)' }}
+                                onClick={() => setPermTarget({ userId: p.user_id, name: p.full_name || p.email || 'parent' })}
+                              >
+                                Extra permissions…
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -419,6 +444,15 @@ export default function Parents() {
           </table>
         )}
       </div>
+
+      {permTarget && (
+        <UserOverridesModal
+          userId={permTarget.userId}
+          userName={permTarget.name}
+          roleKey="parent"
+          onClose={() => setPermTarget(null)}
+        />
+      )}
     </div>
   )
 }

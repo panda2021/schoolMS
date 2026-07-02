@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { useToast } from '@/ui/components/toast/ToastProvider'
+import { useFeature } from '@/ui/features/FeatureProvider'
 import { LoadingSpinner } from '@/ui/components/LoadingSpinner'
 import { useLanguage } from '@/i18n/LanguageProvider'
 
@@ -37,6 +38,7 @@ export default function Attendance() {
   const [teacherId, setTeacherId] = useState<string>('')
   const [schoolId, setSchoolId] = useState<string>('')
   const { show } = useToast()
+  const { can } = useFeature()
   const [classesError, setClassesError] = useState<string | null>(null)
   const [studentsError, setStudentsError] = useState<string | null>(null)
 
@@ -355,8 +357,8 @@ export default function Attendance() {
     <div>
       <h2>{t('attendance.title')}</h2>
 
-      {/* Parent view */}
-      {role === 'parent' && (
+      {/* Parent view (child-scoped capability) */}
+      {role === 'parent' && can('children.attendance.view') && (
         <div className="card">
           {children.length === 0 ? (
             <p className="helper">{t('attendance.noChildren')}</p>
@@ -455,7 +457,7 @@ export default function Attendance() {
               </div>
             </div>
             <div style={{ marginTop: 10, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button className="btn btn-secondary" onClick={exportAdminCsv} disabled={adminFilteredRows.length === 0}>Export CSV</button>
+              {can('attendance.export') && <button className="btn btn-secondary" onClick={exportAdminCsv} disabled={adminFilteredRows.length === 0}>Export CSV</button>}
             </div>
           </div>
 

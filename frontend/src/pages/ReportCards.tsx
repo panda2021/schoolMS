@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { useToast } from '@/ui/components/toast/ToastProvider'
+import { useFeature } from '@/ui/features/FeatureProvider'
 import { LoadingSpinner } from '@/ui/components/LoadingSpinner'
 import { useLanguage } from '@/i18n/LanguageProvider'
 import { AlertTriangle, CheckCircle2, Printer } from 'lucide-react'
@@ -31,6 +32,7 @@ type Scope = 'student' | 'class' | 'school'
 
 export default function ReportCards() {
   const { show } = useToast()
+  const { can } = useFeature()
   const { t, language } = useLanguage()
   const printRef = useRef<HTMLDivElement>(null)
 
@@ -347,7 +349,7 @@ export default function ReportCards() {
     </div>
   )
 
-  if (role !== 'school_admin') {
+  if (role !== 'school_admin' || !can('report_cards.view')) {
     return <div className="card"><h2>{t('reportCards.title')}</h2><p className="helper">Admin only.</p></div>
   }
 

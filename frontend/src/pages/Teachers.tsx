@@ -2,6 +2,8 @@ import { Fragment, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { useToast } from '@/ui/components/toast/ToastProvider'
 import { LoadingSpinner } from '@/ui/components/LoadingSpinner'
+import { useFeature } from '@/ui/features/FeatureProvider'
+import { UserOverridesModal } from '@/ui/features/UserOverridesModal'
 
 interface TeacherRow {
   teacher_id: string
@@ -20,6 +22,7 @@ interface PendingInvite {
 
 export default function Teachers() {
   const { show } = useToast()
+  const { can } = useFeature()
   const [loading, setLoading] = useState(true)
   const [role, setRole] = useState<string | null>(null)
   const [schoolId, setSchoolId] = useState<string | null>(null)
@@ -37,6 +40,9 @@ export default function Teachers() {
   const [resetTarget, setResetTarget] = useState<string | null>(null) // user_id
   const [resetValue, setResetValue] = useState('')
   const [resetting, setResetting] = useState(false)
+
+  // Per-user extra permissions (Phase 5, D4 homeroom bumps)
+  const [permTarget, setPermTarget] = useState<{ userId: string; name: string } | null>(null)
 
   const init = async () => {
     setLoading(true)
@@ -164,7 +170,7 @@ export default function Teachers() {
       <div className="card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <h2 style={{ margin: 0 }}>Teachers</h2>
-          {!showInvite && (
+          {!showInvite && can('teachers.invite') && (
             <button className="btn btn-primary" onClick={() => setShowInvite(true)}>+ Invite teacher</button>
           )}
         </div>
@@ -241,21 +247,36 @@ export default function Teachers() {
                     </td>
                     <td>
                       {t.active ? (
-                        <div style={{ display: 'flex', gap: 4 }}>
-                          <button
-                            className="btn btn-ghost"
-                            style={{ padding: '4px 8px', fontSize: 13, color: 'var(--primary)' }}
-                            onClick={() => {
-                              setResetValue('')
-                              setResetTarget(resetTarget === t.user_id ? null : t.user_id)
-                            }}
-                          >
-                            {resetTarget === t.user_id ? 'Cancel' : 'Reset password'}
-                          </button>
-                          <button className="btn btn-ghost" style={{ padding: '4px 8px', fontSize: 13, color: '#dc2626' }} onClick={() => deactivate(t.teacher_id, t.full_name)}>Deactivate</button>
+                        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                          {can('users.reset_password') && (
+                            <button
+                              className="btn btn-ghost"
+                              style={{ padding: '4px 8px', fontSize: 13, color: 'var(--primary)' }}
+                              onClick={() => {
+                                setResetValue('')
+                                setResetTarget(resetTarget === t.user_id ? null : t.user_id)
+                              }}
+                            >
+                              {resetTarget === t.user_id ? 'Cancel' : 'Reset password'}
+                            </button>
+                          )}
+                          {can('users.manage_permissions') && (
+                            <button
+                              className="btn btn-ghost"
+                              style={{ padding: '4px 8px', fontSize: 13, color: 'var(--primary)' }}
+                              onClick={() => setPermTarget({ userId: t.user_id, name: t.full_name || t.email || 'teacher' })}
+                            >
+                              Permissions
+                            </button>
+                          )}
+                          {can('teachers.delete') && (
+                            <button className="btn btn-ghost" style={{ padding: '4px 8px', fontSize: 13, color: 'var(--danger)' }} onClick={() => deactivate(t.teacher_id, t.full_name)}>Deactivate</button>
+                          )}
                         </div>
                       ) : (
-                        <button className="btn btn-ghost" style={{ padding: '4px 8px', fontSize: 13, color: 'var(--primary)' }} onClick={() => reactivate(t.teacher_id)}>Reactivate</button>
+                        can('teachers.delete') && (
+                          <button className="btn btn-ghost" style={{ padding: '4px 8px', fontSize: 13, color: 'var(--primary)' }} onClick={() => reactivate(t.teacher_id)}>Reactivate</button>
+                        )
                       )}
                     </td>
                   </tr>
@@ -288,6 +309,15 @@ export default function Teachers() {
           </table>
         )}
       </div>
+
+      {permTarget && (
+        <UserOverridesModal
+          userId={permTarget.userId}
+          userName={permTarget.name}
+          roleKey="teacher"
+          onClose={() => setPermTarget(null)}
+        />
+      )}
     </div>
   )
 }

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { useToast } from '@/ui/components/toast/ToastProvider'
+import { useFeature } from '@/ui/features/FeatureProvider'
 import { LoadingSpinner } from '@/ui/components/LoadingSpinner'
 import { FileUpload } from '@/ui/components/FileUpload'
 import { useLanguage } from '@/i18n/LanguageProvider'
@@ -24,6 +25,7 @@ export default function Updates() {
   const [page, setPage] = useState(0)
   const pageSize = 10
   const { show } = useToast()
+  const { can } = useFeature()
   const [mediaMap, setMediaMap] = useState<Record<string, { url: string; name: string } | null>>({})
   const [feedError, setFeedError] = useState<string | null>(null)
 
@@ -74,7 +76,7 @@ export default function Updates() {
     }
   }
 
-  const canPost = useMemo(() => role === 'teacher', [role])
+  const canPost = useMemo(() => role === 'teacher' && can('updates.post'), [role, can])
 
   const post = async () => {
     if (!canPost || !selectedClass || !text.trim()) return

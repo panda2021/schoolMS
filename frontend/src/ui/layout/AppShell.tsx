@@ -77,7 +77,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       {can('students.view') && (
         <NavLink to="/app/students" label={t('nav.students')} icon={<Users size={iconSize} />} onClick={closeMobile} />
       )}
-      {can('attendance.view') && (
+      {can(['attendance.view', 'children.attendance.view']) && (
         <NavLink to="/app/attendance" label={t('nav.attendance')} icon={<CalendarCheck size={iconSize} />} onClick={closeMobile} />
       )}
       {can('updates.view') && (

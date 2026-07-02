@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { useToast } from '@/ui/components/toast/ToastProvider'
+import { useFeature } from '@/ui/features/FeatureProvider'
 import { LoadingSpinner } from '@/ui/components/LoadingSpinner'
 import { useLanguage } from '@/i18n/LanguageProvider'
 
@@ -23,6 +24,7 @@ const GRADES = ['KG', '1', '2', '3', '4', '5', '6', '7', '8']
 
 export default function Classes() {
   const { show } = useToast()
+  const { can } = useFeature()
   const { t } = useLanguage()
   const [role, setRole] = useState<Role | null>(null)
   const [schoolId, setSchoolId] = useState<string | null>(null)
@@ -298,13 +300,13 @@ export default function Classes() {
       <div className="card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <h2 style={{ margin: 0 }}>{t('classes.title')}</h2>
-          {role === 'school_admin' && !showCreate && (
+          {role === 'school_admin' && can('classes.create') && !showCreate && (
             <button className="btn btn-primary" onClick={() => setShowCreate(true)}>{t('classes.add')}</button>
           )}
         </div>
 
         {/* Create form */}
-        {showCreate && role === 'school_admin' && (
+        {showCreate && role === 'school_admin' && can('classes.create') && (
           <div className="card" style={{ marginBottom: 16, background: 'var(--bg)' }}>
             <h4 style={{ margin: '0 0 12px 0' }}>{t('classes.new')}</h4>
             <div className="grid cols-3" style={{ gap: 12 }}>
@@ -387,8 +389,8 @@ export default function Classes() {
                           <button className="btn btn-primary" style={{ padding: '4px 8px', fontSize: 13 }} onClick={() => toggleEnrollment(c.id)}>
                             {expandedClass === c.id ? t('common.close') : t('classes.enroll')}
                           </button>
-                          <button className="btn btn-ghost" style={{ padding: '4px 8px', fontSize: 13 }} onClick={() => startEdit(c)}>{t('common.edit')}</button>
-                          <button className="btn btn-ghost" style={{ padding: '4px 8px', fontSize: 13, color: '#dc2626' }} onClick={() => handleDelete(c.id, c.name)}>{t('common.delete')}</button>
+                          {can('classes.edit') && <button className="btn btn-ghost" style={{ padding: '4px 8px', fontSize: 13 }} onClick={() => startEdit(c)}>{t('common.edit')}</button>}
+                          {can('classes.delete') && <button className="btn btn-ghost" style={{ padding: '4px 8px', fontSize: 13, color: '#dc2626' }} onClick={() => handleDelete(c.id, c.name)}>{t('common.delete')}</button>}
                         </div>
                       </td>
                     )}
