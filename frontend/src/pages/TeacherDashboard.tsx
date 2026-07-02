@@ -72,7 +72,7 @@ export default function TeacherDashboard() {
     load()
   }, [])
 
-  const PIE_COLORS = ['#22c55e', '#f59e0b', '#ef4444']
+  const PIE_COLORS = ['#1d9e55', '#d97706', '#dc2626']
 
   if (loading) return (
     <div>
@@ -93,10 +93,10 @@ export default function TeacherDashboard() {
       {/* Stats */}
       <div className="stat-grid cols-4">
         {[
-          { label: t('teacher.myClasses'), value: stats.classes, color: '#3b82f6', icon: <BookOpen size={24} /> },
-          { label: t('teacher.myStudents'), value: stats.students, color: '#8b5cf6', icon: <Users size={24} /> },
-          { label: t('teacher.updatesWeek'), value: stats.updatesThisWeek, color: '#22c55e', icon: <FileText size={24} /> },
-          { label: t('teacher.attendance'), value: stats.attendanceRate != null ? `${stats.attendanceRate}%` : '\u2014', color: '#f59e0b', icon: <ClipboardCheck size={24} /> },
+          { label: t('teacher.myClasses'), value: stats.classes, color: '#1a8a7a', icon: <BookOpen size={24} /> },
+          { label: t('teacher.myStudents'), value: stats.students, color: '#1a3a4a', icon: <Users size={24} /> },
+          { label: t('teacher.updatesWeek'), value: stats.updatesThisWeek, color: '#1d9e55', icon: <FileText size={24} /> },
+          { label: t('teacher.attendance'), value: stats.attendanceRate != null ? `${stats.attendanceRate}%` : '\u2014', color: '#d97706', icon: <ClipboardCheck size={24} /> },
         ].map((s, i) => (
           <div key={i} className="stat-card">
             <div className="stat-card-accent" style={{ background: s.color }} />
@@ -109,8 +109,8 @@ export default function TeacherDashboard() {
 
       {/* Attendance nudge */}
       {unattended.length > 0 && (
-        <div className="chart-card" style={{ borderLeft: '4px solid #f59e0b', display: 'flex', alignItems: 'center', gap: 14 }}>
-          <AlertTriangle size={22} style={{ color: '#f59e0b', flexShrink: 0 }} />
+        <div className="chart-card" style={{ borderLeft: '4px solid #d97706', display: 'flex', alignItems: 'center', gap: 14 }}>
+          <AlertTriangle size={22} style={{ color: '#d97706', flexShrink: 0 }} />
           <div>
             <div style={{ fontWeight: 700, fontSize: 14 }}>{t('teacher.attendanceNotTaken')}</div>
             <p style={{ margin: '2px 0 0', fontSize: 13, color: 'var(--muted)' }}>
@@ -155,7 +155,7 @@ export default function TeacherDashboard() {
                 <XAxis dataKey="name" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
                 <Tooltip contentStyle={{ borderRadius: 10, border: '1px solid #e2e8f0', fontSize: 13 }} />
-                <Bar dataKey="count" radius={[6, 6, 0, 0]} fill="#8b5cf6" name="Students" />
+                <Bar dataKey="count" radius={[6, 6, 0, 0]} fill="#1a3a4a" name="Students" />
               </BarChart>
             </ResponsiveContainer>
           ) : (
@@ -167,15 +167,15 @@ export default function TeacherDashboard() {
       {/* Quick Actions */}
       <div className="grid cols-3 quick-actions">
         <Link to="/app/attendance" className="quick-action">
-          <div className="quick-action-icon" style={{ background: '#22c55e' }}><ClipboardCheck size={20} /></div>
+          <div className="quick-action-icon" style={{ background: '#1d9e55' }}><ClipboardCheck size={20} /></div>
           <div><h4>{t('teacher.takeAttendance')}</h4><p>{t('teacher.takeAttendanceDesc')}</p></div>
         </Link>
         <Link to="/app/updates" className="quick-action">
-          <div className="quick-action-icon" style={{ background: '#3b82f6' }}><FileText size={20} /></div>
+          <div className="quick-action-icon" style={{ background: '#1a8a7a' }}><FileText size={20} /></div>
           <div><h4>{t('teacher.postUpdate')}</h4><p>{t('teacher.postUpdateDesc')}</p></div>
         </Link>
         <Link to="/app/reports" className="quick-action">
-          <div className="quick-action-icon" style={{ background: '#8b5cf6' }}><BookOpen size={20} /></div>
+          <div className="quick-action-icon" style={{ background: '#1a3a4a' }}><BookOpen size={20} /></div>
           <div><h4>{t('teacher.progressReports')}</h4><p>{t('teacher.progressReportsDesc')}</p></div>
         </Link>
       </div>

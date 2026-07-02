@@ -297,11 +297,11 @@ export default function ParentDashboard() {
       {/* Quick Actions */}
       <div className="grid cols-3 quick-actions">
         <Link to="/app/attendance" className="quick-action">
-          <div className="quick-action-icon" style={{ background: '#22c55e' }}><CalendarCheck size={20} /></div>
+          <div className="quick-action-icon" style={{ background: '#1d9e55' }}><CalendarCheck size={20} /></div>
           <div><h4>{t('parent.viewAttendance')}</h4><p>{t('parent.viewAttendanceDesc')}</p></div>
         </Link>
         <Link to="/app/messages" className="quick-action" style={{ position: 'relative' }}>
-          <div className="quick-action-icon" style={{ background: '#3b82f6' }}><MessageCircle size={20} /></div>
+          <div className="quick-action-icon" style={{ background: '#1a8a7a' }}><MessageCircle size={20} /></div>
           <div><h4>{t('parent.viewMessages')}</h4><p>{t('parent.viewMessagesDesc')}</p></div>
           {unreadCount > 0 && (
             <span className="badge badge-warning" style={{ position: 'absolute', top: 8, right: 8, fontSize: 11 }}>
@@ -310,7 +310,7 @@ export default function ParentDashboard() {
           )}
         </Link>
         <Link to="/app/reports" className="quick-action">
-          <div className="quick-action-icon" style={{ background: '#8b5cf6' }}><BookOpen size={20} /></div>
+          <div className="quick-action-icon" style={{ background: '#1a3a4a' }}><BookOpen size={20} /></div>
           <div><h4>{t('parent.viewReports')}</h4><p>{t('parent.viewReportsDesc')}</p></div>
         </Link>
       </div>

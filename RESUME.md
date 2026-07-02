@@ -11,14 +11,15 @@ All decisions (D1-D6) locked in memory at `project_personalization_decisions.md`
 - **Applied in Supabase**: 0025-0029 (0029 confirmed applied + deployed 2026-07-02). `0030_parent_invites_and_pending.sql` written, NOT yet applied.
 - **Orphaned school_admins**: re-linked by user (2026-07-02). Resolved.
 - **Phases 1-3 committed**: `5e3be0c` (Phase 1), `020ff52` (admin-creation fix), `a9f4a0f` (Phase 2), `0bdc7ea` (Phase 3). Password-reset work (0029 + UI) deployed 2026-07-02.
-- **Uncommitted in working tree (this session)**: parent-model fix — 0030 migration, new Parents.tsx + PendingApproval.tsx pages, RoleRedirect pending branch, SuperAdminDashboard pending-users card, AppShell Parents nav, i18n, ROUTES.md flows 3-4 rewritten, docs/PROGRESS.md, this file.
-- **Active roadmap** (user request 2026-07-02): parent model fix (done, pending apply) → UI overhaul of dashboards (landing page stays) → Phase 4 curriculum editor → Phase 5 gating/overrides → testing pass. Document everything in docs/PROGRESS.md.
+- **Uncommitted in working tree (this session)**: parent-model fix (0030 + Parents.tsx + PendingApproval.tsx + RoleRedirect + SuperAdminDashboard pending card + nav/i18n/ROUTES.md) AND the UI overhaul ("school register" design system: styles.css rewrite, AppShell icons/deep sidebar, dashboard color remap). See docs/PROGRESS.md 2026-07-02 entries for full detail.
+- **Active roadmap** (user request 2026-07-02): parent model fix (done, 0030 pending apply) → UI overhaul (done, code) → Phase 4 curriculum editor (next) → Phase 5 gating/overrides → testing pass. Document everything in docs/PROGRESS.md.
 
 ## TL;DR — next things to do
 
 1. **User: apply `0030_parent_invites_and_pending.sql`** in the Supabase SQL editor, commit + push, redeploy.
 2. **Test parent flows**: invite a parent from /app/parents with students attached → magic link → parent sees children. Sign in with an uninvited email → pending screen → approve from super dashboard → next login routes by new role.
-3. **UI overhaul** of the four dashboards (next build item), then Phase 4 curriculum editor, then Phase 5.
+3. **Eyeball the new UI** after deploy (light + dark + a branded school) — the design intent is logged in PROGRESS.md ("school register" system).
+4. **Phase 4 curriculum editor** (next build item), then Phase 5.
 
 ---
 

@@ -115,7 +115,7 @@ export default function AdminDashboard() {
     load()
   }, [])
 
-  const COLORS = ['#22c55e', '#ef4444', '#f59e0b', '#3b82f6']
+  const COLORS = ['#1d9e55', '#dc2626', '#d97706', '#1a8a7a']
 
   const attendancePieData = stats.attendanceRate != null
     ? [{ name: 'Present', value: stats.attendanceRate }, { name: 'Absent', value: 100 - stats.attendanceRate }]
@@ -164,10 +164,10 @@ export default function AdminDashboard() {
       {/* Stats */}
       <div className="stat-grid cols-4">
         {[
-          { label: t('admin.students'), value: stats.students, color: '#3b82f6', icon: <Users size={24} /> },
-          { label: t('admin.classes'), value: stats.classes, color: '#8b5cf6', icon: <BookOpen size={24} /> },
-          { label: t('admin.teachers'), value: stats.teachers, color: '#22c55e', icon: <GraduationCap size={24} /> },
-          { label: t('admin.attendance'), value: stats.attendanceRate != null ? `${stats.attendanceRate}%` : '\u2014', color: '#f59e0b', icon: <ClipboardCheck size={24} /> },
+          { label: t('admin.students'), value: stats.students, color: '#1a8a7a', icon: <Users size={24} /> },
+          { label: t('admin.classes'), value: stats.classes, color: '#1a3a4a', icon: <BookOpen size={24} /> },
+          { label: t('admin.teachers'), value: stats.teachers, color: '#1d9e55', icon: <GraduationCap size={24} /> },
+          { label: t('admin.attendance'), value: stats.attendanceRate != null ? `${stats.attendanceRate}%` : '\u2014', color: '#d97706', icon: <ClipboardCheck size={24} /> },
         ].map((s, i) => (
           <div key={i} className="stat-card">
             <div className="stat-card-accent" style={{ background: s.color }} />
@@ -187,15 +187,15 @@ export default function AdminDashboard() {
               <AreaChart data={attendanceByDay}>
                 <defs>
                   <linearGradient id="gradPresent" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#22c55e" stopOpacity={0.3} />
-                    <stop offset="100%" stopColor="#22c55e" stopOpacity={0} />
+                    <stop offset="0%" stopColor="#1d9e55" stopOpacity={0.3} />
+                    <stop offset="100%" stopColor="#1d9e55" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <XAxis dataKey="day" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
                 <Tooltip contentStyle={{ borderRadius: 10, border: '1px solid #e2e8f0', fontSize: 13 }} />
-                <Area type="monotone" dataKey="present" stroke="#22c55e" fill="url(#gradPresent)" strokeWidth={2} name={t('admin.present')} />
-                <Area type="monotone" dataKey="absent" stroke="#ef4444" fill="rgba(239,68,68,0.08)" strokeWidth={2} name={t('admin.absent')} />
+                <Area type="monotone" dataKey="present" stroke="#1d9e55" fill="url(#gradPresent)" strokeWidth={2} name={t('admin.present')} />
+                <Area type="monotone" dataKey="absent" stroke="#dc2626" fill="rgba(220,38,38,0.08)" strokeWidth={2} name={t('admin.absent')} />
               </AreaChart>
             </ResponsiveContainer>
           ) : (
@@ -211,7 +211,7 @@ export default function AdminDashboard() {
                 <XAxis dataKey="name" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
                 <Tooltip contentStyle={{ borderRadius: 10, border: '1px solid #e2e8f0', fontSize: 13 }} />
-                <Bar dataKey="students" radius={[6, 6, 0, 0]} fill="#3b82f6" />
+                <Bar dataKey="students" radius={[6, 6, 0, 0]} fill="#1a8a7a" />
               </BarChart>
             </ResponsiveContainer>
           ) : (
@@ -223,19 +223,19 @@ export default function AdminDashboard() {
       {/* Quick Actions */}
       <div className="grid cols-4 quick-actions">
         <div className="quick-action" style={{ cursor: 'pointer' }} onClick={() => setShowWizard(true)}>
-          <div className="quick-action-icon" style={{ background: '#3b82f6' }}><UserPlus size={20} /></div>
+          <div className="quick-action-icon" style={{ background: '#1a8a7a' }}><UserPlus size={20} /></div>
           <div><h4>{t('admin.quickEnroll')}</h4><p>{t('admin.quickEnrollDesc')}</p></div>
         </div>
         <Link to="/app/import" className="quick-action">
-          <div className="quick-action-icon" style={{ background: '#8b5cf6' }}><Upload size={20} /></div>
+          <div className="quick-action-icon" style={{ background: '#1a3a4a' }}><Upload size={20} /></div>
           <div><h4>{t('admin.bulkImport')}</h4><p>{t('admin.bulkImportDesc')}</p></div>
         </Link>
         <Link to="/app/announcements" className="quick-action">
-          <div className="quick-action-icon" style={{ background: '#f59e0b' }}><Megaphone size={20} /></div>
+          <div className="quick-action-icon" style={{ background: '#d97706' }}><Megaphone size={20} /></div>
           <div><h4>{t('admin.announce')}</h4><p>{t('admin.announceDesc')}</p></div>
         </Link>
         <Link to="/app/classes" className="quick-action">
-          <div className="quick-action-icon" style={{ background: '#22c55e' }}><Settings size={20} /></div>
+          <div className="quick-action-icon" style={{ background: '#1d9e55' }}><Settings size={20} /></div>
           <div><h4>{t('admin.classes')}</h4><p>{t('admin.manageClasses')}</p></div>
         </Link>
       </div>

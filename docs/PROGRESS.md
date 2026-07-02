@@ -13,6 +13,44 @@ Conventions used below:
 
 ## 2026-07-02 — Session: password resets, parent-model audit, roadmap restart
 
+### Done: dashboard UI overhaul ("school register" design system) — frontend only, no migration
+Carried the landing-page identity (DM Serif Display + Plus Jakarta Sans, warm
+cream/ochre/teal) into the app. Landing page and login untouched. Design intent
+recorded so future edits stay coherent:
+
+- **Thesis**: warm-paper "school register" aesthetic. Deep-teal sidebar chrome
+  (#1a3a4a, matches landing) against warm paper content (#f6f3ec light /
+  chalkboard #0d1519 dark). Serif display numerals, mono uppercase "register"
+  labels, warm hairline rules. The ochre ledger tab (short 3px dash) marks
+  active nav items and stat cards — the one signature element.
+- **`frontend/src/styles.css`** — tokens + component system rewritten (app
+  sections only; `.lp` and `.login-*` untouched):
+  - New tokens: warm palette both themes; `--success/--warning/--danger/--info`
+    semantic tokens; `--sidebar-*` chrome tokens (NOT school-overridable);
+    `--font-display/--font-body/--font-mono`.
+  - `--primary`/`--primary-600`/`--accent` REMAIN the two BrandingProvider
+    override slots — defaults changed from blue/teal to brand teal #1a8a7a /
+    ochre #c0702a. Schools override them as before.
+  - h1-h3 global serif (DM Serif Display, weight 400). Body = Plus Jakarta Sans.
+  - Tables: mono 11px uppercase headers. Badges: color-mix on semantic tokens
+    (now dark-mode correct). Inputs: primary-tinted focus ring. Buttons:
+    hover lift + primary shadow. Scrollbars themed. prefers-reduced-motion.
+  - Stat cards: serif 36px values, mono labels, ledger-tab accent (was full bar).
+- **`frontend/src/ui/layout/AppShell.tsx`**: NavLink rewritten to CSS classes
+  (`.nav-link`/`.active`, ochre rail via ::before) with lucide icons per item;
+  logo sits on a cream `.brand-plate` so any school logo works on the deep
+  sidebar; mobile sidebar matches desktop chrome.
+- **Dashboards**: hex remap everywhere (perl over AdminDashboard,
+  TeacherDashboard, ParentDashboard, SuperAdminDashboard, Dashboard):
+  `#3b82f6→#1a8a7a (teal)`, `#8b5cf6→#1a3a4a (deep)`, `#22c55e→#1d9e55`,
+  `#f59e0b→#d97706`, `#ef4444→#dc2626`. Branding color-picker defaults in
+  SuperAdminDashboard now #1a8a7a/#c0702a.
+- No markup changes in dashboard pages beyond colors — the visual change is
+  carried by the stylesheet, so all other pages (Students, Classes, etc.)
+  inherit the new system automatically.
+- Typecheck + build clean. Fonts were already loaded by index.html (landing
+  uses them) — zero new font weight.
+
 ### Done: parent-student model fix (code complete; 0030 NOT YET APPLIED)
 Implements the audit's fixes + decision D2. One migration + 4 frontend surfaces:
 

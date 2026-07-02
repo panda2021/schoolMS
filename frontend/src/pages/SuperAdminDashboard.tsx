@@ -533,9 +533,9 @@ export default function SuperAdminDashboard() {
   const suspendedCount = schools.filter(s => s.subscription_status === 'suspended' || s.subscription_status === 'cancelled').length
 
   const statusPie = [
-    { name: 'Active', value: activeCount, color: '#22c55e' },
-    { name: 'Trial', value: trialCount, color: '#3b82f6' },
-    { name: 'Inactive', value: suspendedCount, color: '#ef4444' },
+    { name: 'Active', value: activeCount, color: '#1d9e55' },
+    { name: 'Trial', value: trialCount, color: '#1a8a7a' },
+    { name: 'Inactive', value: suspendedCount, color: '#dc2626' },
   ].filter(d => d.value > 0)
 
   if (loading) return (
@@ -555,10 +555,10 @@ export default function SuperAdminDashboard() {
       {/* Stats */}
       <div className="stat-grid cols-4">
         {[
-          { label: t('super.schools'), value: schools.length, color: '#3b82f6', icon: <Building2 size={24} /> },
-          { label: t('super.students'), value: totalStudents, color: '#8b5cf6', icon: <Users size={24} /> },
-          { label: t('super.teachers'), value: totalTeachers, color: '#22c55e', icon: <GraduationCap size={24} /> },
-          { label: t('super.parents'), value: totalParents, color: '#f59e0b', icon: <UserCheck size={24} /> },
+          { label: t('super.schools'), value: schools.length, color: '#1a8a7a', icon: <Building2 size={24} /> },
+          { label: t('super.students'), value: totalStudents, color: '#1a3a4a', icon: <Users size={24} /> },
+          { label: t('super.teachers'), value: totalTeachers, color: '#1d9e55', icon: <GraduationCap size={24} /> },
+          { label: t('super.parents'), value: totalParents, color: '#d97706', icon: <UserCheck size={24} /> },
         ].map((s, i) => (
           <div key={i} className="stat-card">
             <div className="stat-card-accent" style={{ background: s.color }} />
@@ -571,7 +571,7 @@ export default function SuperAdminDashboard() {
 
       {/* Pending users awaiting approval (D2) */}
       {pendingUsers.length > 0 && (
-        <div className="chart-card" style={{ borderLeft: '4px solid #8b5cf6' }}>
+        <div className="chart-card" style={{ borderLeft: '4px solid #1a3a4a' }}>
           <h3 style={{ margin: '0 0 6px 0' }}>Pending users ({pendingUsers.length})</h3>
           <p style={{ margin: '0 0 12px 0', fontSize: 13, color: 'var(--muted)' }}>
             These people signed in without an invitation. Approve them into a school with a role, or reject to delete the account.
@@ -632,7 +632,7 @@ export default function SuperAdminDashboard() {
       )}
 
       {/* Demo data panel */}
-      <div className="chart-card" style={{ borderLeft: '4px solid #f59e0b' }}>
+      <div className="chart-card" style={{ borderLeft: '4px solid #d97706' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
           <div>
             <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -872,7 +872,7 @@ export default function SuperAdminDashboard() {
                 <div>
                   <label className="helper">Primary color</label>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <input type="color" value={editPrimary || '#2563eb'} onChange={e => setEditPrimary(e.target.value)} style={{ width: 44, height: 36, padding: 2 }} />
+                    <input type="color" value={editPrimary || '#1a8a7a'} onChange={e => setEditPrimary(e.target.value)} style={{ width: 44, height: 36, padding: 2 }} />
                     <input value={editPrimary} placeholder="default" onChange={e => setEditPrimary(e.target.value)} style={{ flex: 1 }} />
                     {editPrimary && <button className="btn btn-ghost" style={{ padding: '4px 8px' }} onClick={() => setEditPrimary('')}>Clear</button>}
                   </div>
@@ -880,7 +880,7 @@ export default function SuperAdminDashboard() {
                 <div>
                   <label className="helper">Secondary (accent) color</label>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <input type="color" value={editSecondary || '#14b8a6'} onChange={e => setEditSecondary(e.target.value)} style={{ width: 44, height: 36, padding: 2 }} />
+                    <input type="color" value={editSecondary || '#c0702a'} onChange={e => setEditSecondary(e.target.value)} style={{ width: 44, height: 36, padding: 2 }} />
                     <input value={editSecondary} placeholder="default" onChange={e => setEditSecondary(e.target.value)} style={{ flex: 1 }} />
                     {editSecondary && <button className="btn btn-ghost" style={{ padding: '4px 8px' }} onClick={() => setEditSecondary('')}>Clear</button>}
                   </div>
