@@ -16,6 +16,8 @@ import Search from '@/pages/Search'
 import Grades from '@/pages/Grades'
 import ReportCards from '@/pages/ReportCards'
 import Teachers from '@/pages/Teachers'
+import Parents from '@/pages/Parents'
+import PendingApproval from '@/pages/PendingApproval'
 import Helpdesk from '@/pages/Helpdesk'
 import FeatureMatrix from '@/pages/FeatureMatrix'
 import ProtectedLayout from '@/ui/auth/ProtectedLayout'
@@ -53,6 +55,8 @@ export default function App() {
         <Route path="search" element={<Search />} />
         <Route path="import" element={<BulkImport />} />
         <Route path="teachers" element={<Teachers />} />
+        <Route path="parents" element={<Parents />} />
+        <Route path="pending" element={<PendingApproval />} />
         <Route path="helpdesk" element={<Helpdesk />} />
         <Route path="settings" element={<Settings />} />
       </Route>

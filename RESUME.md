@@ -8,18 +8,17 @@ All decisions (D1-D6) locked in memory at `project_personalization_decisions.md`
 
 ## Session snapshot (2026-07-02, in progress)
 
-- **Applied in Supabase**: 0025, 0026, 0027, 0028 (user confirmed 2026-07-02). `0029_staff_reset_password.sql` written, NOT yet applied.
+- **Applied in Supabase**: 0025-0029 (0029 confirmed applied + deployed 2026-07-02). `0030_parent_invites_and_pending.sql` written, NOT yet applied.
 - **Orphaned school_admins**: re-linked by user (2026-07-02). Resolved.
-- **Phases 1-3 committed**: `5e3be0c` (Phase 1), `020ff52` (admin-creation fix), `a9f4a0f` (Phase 2), `0bdc7ea` (Phase 3).
-- **Uncommitted in working tree (this session)**: 0029 migration, teacher reset-password UI (Teachers.tsx), self-serve forgot-password (Login.tsx + new ResetPassword.tsx + App.tsx route + i18n en/am + ROUTES.md flows 7-8), docs/PROGRESS.md, this file.
-- **Active roadmap this session** (user request): 1. UI overhaul of dashboards (landing page stays), 2. finish phases 4-6, 3. initial testing pass, 4. fix the parent-student model (audited — see PROGRESS.md 2026-07-02 entry for the 5 gaps; headline: no "Invite parent" UI exists and no-invite logins create ghost parent accounts), 5. document every step.
+- **Phases 1-3 committed**: `5e3be0c` (Phase 1), `020ff52` (admin-creation fix), `a9f4a0f` (Phase 2), `0bdc7ea` (Phase 3). Password-reset work (0029 + UI) deployed 2026-07-02.
+- **Uncommitted in working tree (this session)**: parent-model fix — 0030 migration, new Parents.tsx + PendingApproval.tsx pages, RoleRedirect pending branch, SuperAdminDashboard pending-users card, AppShell Parents nav, i18n, ROUTES.md flows 3-4 rewritten, docs/PROGRESS.md, this file.
+- **Active roadmap** (user request 2026-07-02): parent model fix (done, pending apply) → UI overhaul of dashboards (landing page stays) → Phase 4 curriculum editor → Phase 5 gating/overrides → testing pass. Document everything in docs/PROGRESS.md.
 
 ## TL;DR — next things to do
 
-1. **User: apply `0029_staff_reset_password.sql`** in the Supabase SQL editor, commit + push, redeploy.
-2. **Test password resets**: super-admin → school-admin (edit-school modal), school-admin → teacher (/app/teachers), self-serve forgot-password from /login.
-3. **Parent-student model fix** — design agreed with user, then implement (invite-parent UI + pending-approval flow per D2).
-4. **UI overhaul** of the four dashboards + Phase 4 curriculum editor + Phase 5 gating.
+1. **User: apply `0030_parent_invites_and_pending.sql`** in the Supabase SQL editor, commit + push, redeploy.
+2. **Test parent flows**: invite a parent from /app/parents with students attached → magic link → parent sees children. Sign in with an uninvited email → pending screen → approve from super dashboard → next login routes by new role.
+3. **UI overhaul** of the four dashboards (next build item), then Phase 4 curriculum editor, then Phase 5.
 
 ---
 
@@ -32,7 +31,8 @@ All decisions (D1-D6) locked in memory at `project_personalization_decisions.md`
 | 0026 | `fix_admin_reset_password.sql` | ✅ (user confirmed 2026-06-29) | Adds `extensions` to `search_path` in `admin_reset_password` so `crypt()` and `gen_salt()` resolve. Also adds a `NOT FOUND` check so the RPC errors loudly if the target user doesn't exist. |
 | 0027 | `feature_permissions.sql` | ✅ (user confirmed 2026-07-02) | Phase 2 RBAC framework. Creates `features`, `role_features`, `user_feature_overrides`; adds `user_can(text,uuid)` + `my_features()` SECURITY DEFINER helpers; RLS; seeds the capability catalog and role defaults to reproduce current behavior exactly (non-breaking). |
 | 0028 | `school_branding.sql` | ✅ (user confirmed 2026-07-02) | Phase 3 branding. Adds `logo_url`, `primary_color`, `secondary_color`, `bg_image_url`, `bg_opacity` to `schools`; creates a public `branding` storage bucket; adds storage.objects write policies (super_admin any folder, school_admin own `<school_id>/` folder). |
-| 0029 | `staff_reset_password.sql` | ❌ **PENDING** | Adds `users.reset_password` capability (seeded to school_admin) and widens `admin_reset_password`: super_admin → anyone; capability holders → teachers/parents in own school. |
+| 0029 | `staff_reset_password.sql` | ✅ (user confirmed 2026-07-02) | Adds `users.reset_password` capability (seeded to school_admin) and widens `admin_reset_password`: super_admin → anyone; capability holders → teachers/parents in own school. |
+| 0030 | `parent_invites_and_pending.sql` | ❌ **PENDING** | Parent-model fix: invitations carry `student_ids`+`relation` (auto-link at first login); uninvited sign-ins become role `'pending'` (D2) with approve/reject RPCs; ghosts migrated; `parents.*` capabilities; relation CHECK. |
 
 ### Frontend
 - **`frontend/src/pages/Attendance.tsx`** — new admin branch: date range, class, grade, status, name-search filters, 4 summary tiles, CSV export. Existing teacher / parent branches unchanged. `tsc --noEmit` clean.
@@ -142,7 +142,10 @@ supabase/migrations/
   0026_fix_admin_reset_password.sql         ← applied
   0027_feature_permissions.sql              ← applied (Phase 2 RBAC framework)
   0028_school_branding.sql                  ← applied (Phase 3 branding + storage bucket)
-  0029_staff_reset_password.sql             ← PENDING (school_admin resets teacher/parent passwords)
+  0029_staff_reset_password.sql             ← applied (school_admin resets teacher/parent passwords)
+  0030_parent_invites_and_pending.sql       ← PENDING (parent invites w/ student links + pending-approval)
+frontend/src/pages/Parents.tsx              ← new — admin parent management (/app/parents)
+frontend/src/pages/PendingApproval.tsx      ← new — awaiting-approval screen (/app/pending)
 frontend/src/pages/
   Attendance.tsx                            ← admin branch added
   SuperAdminDashboard.tsx                   ← assign-existing-admin UI + email-taken guard + branding editor

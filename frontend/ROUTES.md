@@ -32,6 +32,8 @@ Last verified: 2026-07-01 against `App.tsx`, `RoleRedirect.tsx`, `ProtectedLayou
 | `/app/search` | `pages/Search` | yes | super_admin global, admin school-only, teacher own-class only |
 | `/app/import` | `pages/BulkImport` | yes | admin-only |
 | `/app/teachers` | `pages/Teachers` | yes | admin-only |
+| `/app/parents` | `pages/Parents` | yes | admin-only; invite parents (with student links), manage parent-student links, reset parent passwords |
+| `/app/pending` | `pages/PendingApproval` | yes | shown to `role='pending'` users (uninvited sign-ins, D2); just an info screen + sign out |
 | `/app/helpdesk` | `pages/Helpdesk` | yes | anyone opens own tickets; super_admin sees all |
 | `/app/settings` | `pages/Settings` | yes | personal prefs for all; admin sees curriculum/assessments |
 | `*` (anything else) | redirect to `/` | n/a | n/a |
@@ -83,17 +85,23 @@ Last verified: 2026-07-01 against `App.tsx`, `RoleRedirect.tsx`, `ProtectedLayou
 
 **Historic bug (fixed in 0025):** the RPC's `pending_invitations` SELECT was blocked by RLS even inside `SECURITY DEFINER`, so the lookup returned zero rows. The function fell through to the default branch and wrote `role='parent'`, sending the teacher to `/app/parent` forever. Fix: `SET row_security = off` on the function; recovery path also rewrites stuck `parent / NULL school` stubs.
 
-### Flow 3: Parent receives magic link
+### Flow 3: Admin invites a parent (post-migration 0030)
 
-Identical to Flow 2, but the invitation `role_key` is `parent`, so the RPC writes a `parents` row and `RoleRedirect` lands on `/app/parent`.
+1. Admin opens `/app/parents`, enters parent email + name, picks a relation and the student(s) to link.
+2. Frontend INSERT into `pending_invitations` with `role_key='parent'`, `student_ids uuid[]`, `relation`.
+3. Magic link is sent exactly like Flow 2.
+4. On first login, `ensure_user_profile()` (0030) consumes the invitation: writes `users` row, `parents` row, AND `parent_students` rows for every student on the invitation that belongs to the inviting school. Relation comes from the invitation.
+5. `RoleRedirect` lands on `/app/parent`, and the parent immediately sees their children.
 
-### Flow 4: Brand-new auth user (no invitation)
+### Flow 4: Brand-new auth user (no invitation) — pending approval (D2, post-0030)
 
-1. Login via OTP — no row in `public.users`, no row in `pending_invitations`.
-2. `ensure_user_profile()` falls through to legacy fallback: writes `role='parent', school_id=NULL`.
-3. `RoleRedirect` sends them to `/app/parent` — but with no school_id, most pages will be empty.
+1. Login via OTP or password — no row in `public.users`, no row in `pending_invitations`.
+2. `ensure_user_profile()` writes `role='pending', school_id=NULL`.
+3. `RoleRedirect` sends them to `/app/pending` (`pages/PendingApproval.tsx`) — a friendly "awaiting approval" screen with sign-out. Their nav is empty ('pending' has no capabilities).
+4. The user appears in the super-admin dashboard "Pending users" card. Super-admin picks a role + school and calls `approve_pending_user` RPC (creates `teachers`/`parents` row as needed), or `reject_pending_user` (deletes the auth account entirely).
+5. On the user's next login/refresh, `RoleRedirect` sees the real role and routes normally. `RoleRedirect` also re-runs `ensure_user_profile()` for 'pending' users on every login, so an invitation created AFTER their first sign-in is consumed automatically.
 
-**Phase 2 (D2):** replace this legacy fallback with `role='pending'` + a "Pending approval" screen, and add a Pending Users tab to the admin dashboard for approval.
+**History:** before 0030 the fallback wrote `role='parent', school_id=NULL` — a ghost account stuck on an empty parent dashboard, invisible to admin flows. 0030 migrates those ghosts to 'pending' so they surface in the approval queue.
 
 ### Flow 5: Super-admin creates a school + initial admin
 

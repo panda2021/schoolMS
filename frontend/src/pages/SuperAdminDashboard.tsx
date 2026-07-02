@@ -38,6 +38,11 @@ export default function SuperAdminDashboard() {
   const [totalTeachers, setTotalTeachers] = useState(0)
   const [totalParents, setTotalParents] = useState(0)
 
+  // Pending users awaiting approval (D2, migration 0030)
+  const [pendingUsers, setPendingUsers] = useState<{ id: string; full_name: string | null; email: string | null; created_at: string }[]>([])
+  const [pendingChoices, setPendingChoices] = useState<Record<string, { role: string; schoolId: string }>>({})
+  const [pendingBusy, setPendingBusy] = useState<string | null>(null)
+
   // Add school form
   const [showAddSchool, setShowAddSchool] = useState(false)
   const [newName, setNewName] = useState('')
@@ -121,11 +126,52 @@ export default function SuperAdminDashboard() {
       teacher_count: teachersBySchool[s.id] || 0,
     }))
 
+    // Users awaiting approval (signed in without an invitation)
+    const { data: pendingData } = await supabase
+      .from('users')
+      .select('id, full_name, email, created_at')
+      .eq('role_key', 'pending')
+      .is('deleted_at', null)
+      .order('created_at', { ascending: false })
+
     setSchools(enriched)
     setTotalStudents(students?.length ?? 0)
     setTotalTeachers(teachers?.length ?? 0)
     setTotalParents(parents?.length ?? 0)
+    setPendingUsers(pendingData ?? [])
     setLoading(false)
+  }
+
+  const approvePendingUser = async (userId: string) => {
+    const choice = pendingChoices[userId]
+    if (!choice?.role || !choice?.schoolId) {
+      show('Pick a role and a school first', 'error')
+      return
+    }
+    setPendingBusy(userId)
+    const { error } = await supabase.rpc('approve_pending_user', {
+      target_user_id: userId,
+      new_role: choice.role,
+      target_school_id: choice.schoolId,
+    })
+    if (error) show(error.message, 'error')
+    else {
+      show('User approved. They get their new role on next login/refresh.', 'success')
+      await loadData()
+    }
+    setPendingBusy(null)
+  }
+
+  const rejectPendingUser = async (userId: string, label: string) => {
+    if (!confirm(`Reject and delete the account ${label}? This removes their login entirely.`)) return
+    setPendingBusy(userId)
+    const { error } = await supabase.rpc('reject_pending_user', { target_user_id: userId })
+    if (error) show(error.message, 'error')
+    else {
+      show('User rejected and removed', 'success')
+      await loadData()
+    }
+    setPendingBusy(null)
   }
 
   useEffect(() => { loadData() }, [])
@@ -522,6 +568,68 @@ export default function SuperAdminDashboard() {
           </div>
         ))}
       </div>
+
+      {/* Pending users awaiting approval (D2) */}
+      {pendingUsers.length > 0 && (
+        <div className="chart-card" style={{ borderLeft: '4px solid #8b5cf6' }}>
+          <h3 style={{ margin: '0 0 6px 0' }}>Pending users ({pendingUsers.length})</h3>
+          <p style={{ margin: '0 0 12px 0', fontSize: 13, color: 'var(--muted)' }}>
+            These people signed in without an invitation. Approve them into a school with a role, or reject to delete the account.
+          </p>
+          <table>
+            <thead>
+              <tr><th>Name</th><th>Email</th><th>Signed up</th><th>Role</th><th>School</th><th style={{ width: 170 }}>Actions</th></tr>
+            </thead>
+            <tbody>
+              {pendingUsers.map(u => {
+                const choice = pendingChoices[u.id] ?? { role: 'parent', schoolId: '' }
+                const setChoice = (patch: Partial<{ role: string; schoolId: string }>) =>
+                  setPendingChoices(prev => ({ ...prev, [u.id]: { ...choice, ...patch } }))
+                return (
+                  <tr key={u.id}>
+                    <td style={{ fontWeight: 500 }}>{u.full_name || '—'}</td>
+                    <td>{u.email ?? '—'}</td>
+                    <td>{new Date(u.created_at).toLocaleDateString()}</td>
+                    <td>
+                      <select value={choice.role} onChange={e => setChoice({ role: e.target.value })}>
+                        <option value="parent">Parent</option>
+                        <option value="teacher">Teacher</option>
+                        <option value="school_admin">School admin</option>
+                      </select>
+                    </td>
+                    <td>
+                      <select value={choice.schoolId} onChange={e => setChoice({ schoolId: e.target.value })}>
+                        <option value="">Select school…</option>
+                        {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                      </select>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', gap: 4 }}>
+                        <button
+                          className="btn btn-secondary"
+                          style={{ padding: '4px 10px', fontSize: 13 }}
+                          disabled={pendingBusy === u.id || !choice.schoolId}
+                          onClick={() => approvePendingUser(u.id)}
+                        >
+                          {pendingBusy === u.id ? <LoadingSpinner size="sm" /> : 'Approve'}
+                        </button>
+                        <button
+                          className="btn btn-ghost"
+                          style={{ padding: '4px 8px', fontSize: 13, color: '#dc2626' }}
+                          disabled={pendingBusy === u.id}
+                          onClick={() => rejectPendingUser(u.id, u.email || u.full_name || 'this user')}
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* Demo data panel */}
       <div className="chart-card" style={{ borderLeft: '4px solid #f59e0b' }}>

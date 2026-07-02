@@ -99,6 +99,9 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       {can('teachers.view') && (
         <NavLink to="/app/teachers" label={t('nav.teachers') || 'Teachers'} onClick={closeMobile} />
       )}
+      {can('parents.view') && (
+        <NavLink to="/app/parents" label={t('nav.parents') || 'Parents'} onClick={closeMobile} />
+      )}
       {can('import.use') && (
         <NavLink to="/app/import" label={t('nav.import')} onClick={closeMobile} />
       )}

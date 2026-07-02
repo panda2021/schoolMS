@@ -13,6 +13,49 @@ Conventions used below:
 
 ## 2026-07-02 — Session: password resets, parent-model audit, roadmap restart
 
+### Done: parent-student model fix (code complete; 0030 NOT YET APPLIED)
+Implements the audit's fixes + decision D2. One migration + 4 frontend surfaces:
+
+- **`supabase/migrations/0030_parent_invites_and_pending.sql`** (NOT YET APPLIED):
+  - New role `'pending'` for uninvited sign-ins.
+  - `pending_invitations` gains `student_ids uuid[]` + `relation` so a parent
+    invite carries the children to auto-link at first login.
+  - `ensure_user_profile()` v3: consumes student links on parent invites
+    (school-scoped, relation applied); fallback now writes `role='pending'`
+    instead of ghost `parent/NULL`; 'pending' users fall through to invitation
+    lookup on every call, so late invitations still work.
+  - Migrates existing ghost accounts (`parent`, no school, no parents row) to
+    'pending' so they surface in the approval queue.
+  - `approve_pending_user(user, role, school)` + `reject_pending_user(user)`
+    RPCs, super_admin-only. Reject deletes the auth.users row (cascades).
+  - `parent_students.relation` CHECK ('mother','father','guardian','other';
+    existing junk normalized to 'guardian').
+  - Capabilities `parents.view/invite/edit` seeded to school_admin.
+- **`frontend/src/pages/Parents.tsx`** (NEW, /app/parents, admin-only): parent
+  list with children chips; invite-parent form (email/name/relation + student
+  multi-select with search); pending-invitation table with cancel; per-parent
+  Manage panel (link/unlink students with relation, reset password via
+  `admin_reset_password`).
+- **`frontend/src/pages/PendingApproval.tsx`** (NEW, /app/pending): "awaiting
+  approval" screen (i18n en+am) + sign out.
+- **`frontend/src/ui/auth/RoleRedirect.tsx`**: routes `pending`/unknown roles
+  to /app/pending; re-runs `ensure_user_profile()` for pending users and
+  legacy parent stubs on every login (invitation retry).
+- **`frontend/src/pages/SuperAdminDashboard.tsx`**: "Pending users" card
+  (visible only when non-empty) with per-row role+school selects, Approve
+  (RPC) and Reject (confirm + RPC).
+- **`frontend/src/ui/layout/AppShell.tsx`**: Parents nav item gated by
+  `can('parents.view')`. i18n `nav.parents`/`nav.teachers` + `pendingApproval.*`.
+- `frontend/ROUTES.md`: routes table updated; Flow 3 (invite parent) and
+  Flow 4 (pending approval) rewritten.
+- Typecheck + build clean.
+- Design note: approval is super_admin-only (not school_admin) because a
+  stranger belongs to no school yet — RLS hides school-less users from school
+  admins, and only the platform owner can safely decide which school they join.
+- USER MUST: apply 0030 in Supabase, deploy, then test (invite a parent with
+  students attached; sign in with an uninvited email → pending screen →
+  approve from super dashboard).
+
 ### Done: migrations 0027 + 0028 applied; orphan admins re-linked (user action)
 - User confirmed applying `0027_feature_permissions.sql` (Phase 2 RBAC) and
   `0028_school_branding.sql` (Phase 3 branding) in Supabase.

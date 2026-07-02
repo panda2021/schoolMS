@@ -13,8 +13,14 @@ export default function RoleRedirect() {
       // Try to load profile first
       let { data } = await supabase.from('users').select('role_key, school_id').eq('id', user.id).maybeSingle()
 
-      // If no public.users row, provision one (default role: parent)
-      if (!data?.role_key) {
+      // Provision / repair the profile when it's missing, awaiting approval, or
+      // a legacy 'parent with no school' stub. ensure_user_profile() consumes a
+      // matching pending invitation if one exists (0030), so an invited
+      // 'pending' user is upgraded on their next login.
+      const needsEnsure = !data?.role_key
+        || data.role_key === 'pending'
+        || (data.role_key === 'parent' && !data.school_id)
+      if (needsEnsure) {
         const { data: ensured, error } = await supabase.rpc('ensure_user_profile')
         if (error) {
           console.error('ensure_user_profile failed:', error)
@@ -28,7 +34,8 @@ export default function RoleRedirect() {
       else if (role === 'school_admin') navigate('/app/admin', { replace: true })
       else if (role === 'teacher') navigate('/app/teacher', { replace: true })
       else if (role === 'parent') navigate('/app/parent', { replace: true })
-      else navigate('/app/parent', { replace: true })
+      // 'pending' (no invitation matched, D2) or anything unknown: approval screen
+      else navigate('/app/pending', { replace: true })
     }
     run()
   }, [navigate])

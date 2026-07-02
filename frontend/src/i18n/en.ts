@@ -13,7 +13,13 @@ const en: Record<string, string> = {
   'nav.settings': 'Settings',
   'nav.overview': 'Overview',
   'nav.featureMatrix': 'Feature Matrix',
+  'nav.teachers': 'Teachers',
+  'nav.parents': 'Parents',
   'nav.signOut': 'Sign out',
+
+  // Pending approval (uninvited sign-in)
+  'pendingApproval.title': 'Account pending approval',
+  'pendingApproval.body': 'Your account was created but is not yet linked to a school. A platform administrator has been notified and will approve your access shortly. If you were expecting an invitation, ask your school to re-send it, then sign in again with that email.',
   'nav.darkMode': 'Dark mode',
   'nav.lightMode': 'Light mode',
   'nav.platformAdmin': 'Platform Admin',
