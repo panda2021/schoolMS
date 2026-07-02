@@ -13,6 +13,21 @@ Conventions used below:
 
 ## 2026-07-02 — Session: password resets, parent-model audit, roadmap restart
 
+### Done: 0030 applied + deployed (user confirmed); Phase 4 curriculum editor (code complete, NO migration needed)
+- User applied `0030_parent_invites_and_pending.sql` and pushed/redeployed the
+  frontend with the parent-model fix + UI overhaul.
+- **Phase 4 = subject editing in Settings** (`frontend/src/pages/Settings.tsx`,
+  admin-only "Subjects" card). The schema needed nothing: `subjects` already
+  has `name/name_am/grade_levels text[]/is_default/deleted_at` (0015) and RLS
+  already permits school_admin update/delete in own school. Changes:
+  - Inline edit per row (pencil icon): rename (en + am), toggle grade-level
+    badges (KG-8), save writes `grade_levels` in canonical KG→8 order.
+  - Delete now allowed for ALL subjects including `is_default` ones (was
+    non-default only) — soft delete; confirm explains grades keep history.
+  - Add + seed-defaults flows unchanged.
+- Typecheck + build clean. Nothing for the user to apply in Supabase this time;
+  just commit + push + redeploy the frontend.
+
 ### Done: dashboard UI overhaul ("school register" design system) — frontend only, no migration
 Carried the landing-page identity (DM Serif Display + Plus Jakarta Sans, warm
 cream/ochre/teal) into the app. Landing page and login untouched. Design intent

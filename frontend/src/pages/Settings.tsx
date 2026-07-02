@@ -4,7 +4,7 @@ import { useTheme } from '@/ui/theme/ThemeProvider'
 import { useLanguage } from '@/i18n/LanguageProvider'
 import { useToast } from '@/ui/components/toast/ToastProvider'
 import { LoadingSpinner } from '@/ui/components/LoadingSpinner'
-import { Trash2 } from 'lucide-react'
+import { Trash2, Pencil } from 'lucide-react'
 
 const GRADES = ['KG', '1', '2', '3', '4', '5', '6', '7', '8']
 
@@ -42,6 +42,13 @@ export default function Settings() {
   const [newSubNameAm, setNewSubNameAm] = useState('')
   const [newSubGrades, setNewSubGrades] = useState<string[]>([])
   const [savingSubject, setSavingSubject] = useState(false)
+
+  // Inline subject editing (Phase 4 curriculum editor)
+  const [editingSubjectId, setEditingSubjectId] = useState<string | null>(null)
+  const [editSubName, setEditSubName] = useState('')
+  const [editSubNameAm, setEditSubNameAm] = useState('')
+  const [editSubGrades, setEditSubGrades] = useState<string[]>([])
+  const [savingEdit, setSavingEdit] = useState(false)
 
   // Assessment Types
   const [assessmentTypes, setAssessmentTypes] = useState<AssessmentType[]>([])
@@ -159,10 +166,43 @@ export default function Settings() {
     setSavingSubject(false)
   }
 
-  const deleteSubject = async (id: string) => {
-    if (!confirm('Delete this subject?')) return
-    await supabase.from('subjects').update({ deleted_at: new Date().toISOString() }).eq('id', id)
+  const deleteSubject = async (id: string, name: string) => {
+    if (!confirm(`Delete "${name}"? It disappears from grade entry and class assignments; already-recorded grades keep their history.`)) return
+    const { error } = await supabase.from('subjects').update({ deleted_at: new Date().toISOString() }).eq('id', id)
+    if (error) show(error.message, 'error')
+    else show('Subject deleted', 'success')
     loadSubjects()
+  }
+
+  const startEditSubject = (s: Subject) => {
+    setEditingSubjectId(s.id)
+    setEditSubName(s.name)
+    setEditSubNameAm(s.name_am ?? '')
+    setEditSubGrades([...s.grade_levels])
+  }
+
+  const toggleEditGrade = (g: string) => {
+    setEditSubGrades(prev => prev.includes(g) ? prev.filter(x => x !== g) : [...prev, g])
+  }
+
+  const saveSubjectEdit = async () => {
+    if (!editingSubjectId || !editSubName.trim() || editSubGrades.length === 0) return
+    setSavingEdit(true)
+    // Keep grade order canonical (KG, 1..8) regardless of click order
+    const ordered = GRADES.filter(g => editSubGrades.includes(g))
+    const { error } = await supabase.from('subjects').update({
+      name: editSubName.trim(),
+      name_am: editSubNameAm.trim() || null,
+      grade_levels: ordered,
+      updated_at: new Date().toISOString(),
+    }).eq('id', editingSubjectId)
+    if (error) show(error.message, 'error')
+    else {
+      show('Subject updated', 'success')
+      setEditingSubjectId(null)
+      loadSubjects()
+    }
+    setSavingEdit(false)
   }
 
   // ─── Assessment Types ───
@@ -314,27 +354,84 @@ export default function Settings() {
                     <th>{t('subjects.name')}</th>
                     <th>{t('subjects.nameAm')}</th>
                     <th>{t('subjects.gradeLevels')}</th>
-                    <th style={{ width: 60 }}></th>
+                    <th style={{ width: 84 }}></th>
                   </tr>
                 </thead>
                 <tbody>
                   {subjects.map(s => (
-                    <tr key={s.id}>
-                      <td style={{ fontWeight: 500 }}>{s.name}</td>
-                      <td>{s.name_am ?? '-'}</td>
-                      <td>
-                        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                          {s.grade_levels.map(g => <span key={g} className="badge" style={{ fontSize: 11 }}>{g}</span>)}
-                        </div>
-                      </td>
-                      <td>
-                        {!s.is_default && (
-                          <button className="btn btn-ghost" style={{ padding: 4, color: '#dc2626' }} onClick={() => deleteSubject(s.id)}>
-                            <Trash2 size={14} />
-                          </button>
-                        )}
-                      </td>
-                    </tr>
+                    editingSubjectId === s.id ? (
+                      <tr key={s.id}>
+                        <td colSpan={4} style={{ background: 'var(--bg)' }}>
+                          <div style={{ display: 'grid', gap: 10, padding: '6px 0' }}>
+                            <div className="grid cols-2" style={{ gap: 10 }}>
+                              <div>
+                                <label className="helper">{t('subjects.name')}</label>
+                                <input value={editSubName} onChange={e => setEditSubName(e.target.value)} />
+                              </div>
+                              <div>
+                                <label className="helper">{t('subjects.nameAm')}</label>
+                                <input value={editSubNameAm} onChange={e => setEditSubNameAm(e.target.value)} />
+                              </div>
+                            </div>
+                            <div>
+                              <label className="helper">{t('subjects.gradeLevels')}</label>
+                              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
+                                {GRADES.map(g => (
+                                  <button
+                                    key={g}
+                                    className={`badge ${editSubGrades.includes(g) ? 'badge-success' : ''}`}
+                                    onClick={() => toggleEditGrade(g)}
+                                    style={{ cursor: 'pointer', padding: '4px 10px' }}
+                                  >
+                                    {g}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', gap: 8 }}>
+                              <button
+                                className="btn btn-primary"
+                                onClick={saveSubjectEdit}
+                                disabled={savingEdit || !editSubName.trim() || editSubGrades.length === 0}
+                              >
+                                {savingEdit ? <LoadingSpinner size="sm" /> : t('common.save')}
+                              </button>
+                              <button className="btn btn-secondary" onClick={() => setEditingSubjectId(null)}>{t('common.cancel')}</button>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : (
+                      <tr key={s.id}>
+                        <td style={{ fontWeight: 500 }}>{s.name}</td>
+                        <td>{s.name_am ?? '-'}</td>
+                        <td>
+                          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                            {s.grade_levels.map(g => <span key={g} className="badge" style={{ fontSize: 11 }}>{g}</span>)}
+                          </div>
+                        </td>
+                        <td>
+                          <div style={{ display: 'flex', gap: 2 }}>
+                            <button
+                              className="btn btn-ghost"
+                              style={{ padding: 4, color: 'var(--primary)' }}
+                              title={t('common.edit')}
+                              onClick={() => startEditSubject(s)}
+                            >
+                              <Pencil size={14} />
+                            </button>
+                            <button
+                              className="btn btn-ghost"
+                              style={{ padding: 4, color: 'var(--danger)' }}
+                              title={t('common.delete')}
+                              onClick={() => deleteSubject(s.id, s.name)}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
                   ))}
                 </tbody>
               </table>
