@@ -18,8 +18,8 @@ All decisions (D1-D6) locked in memory at `project_personalization_decisions.md`
 ## TL;DR — next things to do
 
 1. **User: apply `0031_phase5_capabilities.sql`**, commit + push, redeploy.
-2. **Test** (full checklist in PROGRESS.md): parent flows, password resets, error dialog (trigger any error — must stay until OK), subject editing, per-user "Permissions" modal on Teachers page, parent Attendance nav item, matrix toggles actually hiding buttons.
-3. Deferred: Phase 5b (RLS onto user_can()), Phase 6 (student-as-user, only if D1 flips), landing-page-time branding via subdomain.
+2. **Run `docs/TESTING.md`** — the complete ~20-min manual pass, role by role. Automated + live-DB smoke already green (12/12, see `scripts/smoke_phase5.mjs`).
+3. Deferred for a future session: **Phase 5b** (move domain-table RLS onto `user_can()` so per-user grants work beyond UI surfaces), Phase 6 (student-as-user, only if D1 flips), subdomain branding, bundle code-splitting.
 
 ---
 

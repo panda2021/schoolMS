@@ -13,6 +13,25 @@ Conventions used below:
 
 ## 2026-07-02 — Session: password resets, parent-model audit, roadmap restart
 
+### Done: testing pass + session close-out
+- **Automated**: `tsc --noEmit` + `npm run build` clean on the final tree.
+- **Live-DB smoke**: new `scripts/smoke_phase5.mjs` (anon-client probe; run via
+  the cp-into-frontend gotcha documented in the file header) — **12/12 green**
+  against production: 0027 tables + `my_features`/`user_can`, 0028 branding
+  columns, 0029 `admin_reset_password` (error message proves the NEW version
+  is deployed, not the 0026 one), 0030 invitation columns +
+  `ensure_user_profile`/`approve_pending_user`/`reject_pending_user`.
+  0031 is seed-rows-only → not anon-verifiable; verify via /app/features.
+- **Manual**: full ~20-minute role-by-role script written to
+  **`docs/TESTING.md`** (7 sections: super admin, school admin, invited
+  parent, stranger→pending→approve/reject, forgot-password, matrix-gating
+  regression, teacher spot-check). This is the user's checklist to run after
+  applying 0031 + deploying.
+- Session ends with: **all phases 1-5 code-complete; 0031 the only unapplied
+  migration; TESTING.md the next action.** Open deep work for a future
+  session: "Phase 5b" (domain RLS onto user_can()), Phase 6 (student login,
+  only if D1 flips), subdomain-based branding, code-splitting the 1.4MB bundle.
+
 ### Done: blocking error dialogs + Phase 5 (capability gating + per-user overrides)
 **Error UX (user request):** `ToastProvider` split — `show(msg, 'error')` now
 renders a blocking alert dialog (OK / X / Esc / backdrop) that stays until
