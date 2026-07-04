@@ -1,51 +1,41 @@
 # Test accounts — ABOGIDA / FIDEL
 
-Hand this to testers so they know which login to use and what to try. Every
-tester logs in at the same place, then lands on their own dashboard by role.
+Everyone logs in at the same page, then lands on their own dashboard by role.
 
-> **Fill in the blanks below before sending.** The app ships with no seeded
-> passwords — you set each one yourself (super-admin creates the school admin
-> and sets/resets passwords; parents get a magic link by email). Replace every
-> `<...>` with the real value, then delete this note.
+**App URL:** `https://abogida-taupe.vercel.app/`
+**Login page:** `https://abogida-taupe.vercel.app/login`
 
-**App URL:** `https://<your-app>.vercel.app`
-**Login page:** `https://<your-app>.vercel.app/login`
+> ✅ These credentials are **live** — set and login-verified against the production database on 2026-07-04.
 
 ---
 
-## Accounts by role
+## Accounts
 
-| Role | Email | Password | Lands on | What they can test |
-|------|-------|----------|----------|--------------------|
-| **Super admin** (platform owner) | `<super-admin-email>` | `<password>` | `/app/super` | Create/edit schools, branding, Feature Matrix (`/app/features`), reset any password |
-| **School admin** | `<admin-email>` | `<password>` | `/app/admin` | Teachers, Parents, Attendance, Settings/Subjects, reset teacher & parent passwords, per-user permissions |
-| **Teacher** | `<teacher-email>` | `<password>` | `/app/teacher` | Take attendance, classes, grades, report cards, announcements |
-| **Parent** | `<parent-email>` | *(magic link — no password)* | `/app/parent` | View their child, child attendance history, messages/announcements |
+| Role | Email | Password | School | Lands on | What to test |
+|------|-------|----------|--------|----------|--------------|
+| **School admin** | `admin@admin.com` | `Fidel-Admin-7392` | Saint Joseph School | `/app/admin` | Teachers, Parents, Attendance, Settings/Subjects, reset teacher & parent passwords, per-user permissions |
+| **Teacher** | `teacher@test.com` | `Fidel-Teach-4815` | Demo School | `/app/teacher` | Take attendance, classes, grades, report cards, announcements |
+| **Parent** | `parent1@test.com` | `Fidel-Parent-2648` | Demo School (4 linked students) | `/app/parent` | View children, child attendance history, messages/announcements |
 
-> The **parent** account normally signs in through the invite/magic-link email,
-> not a password. If you want a parent to log in with a password instead, reset
-> it from the school admin's `/app/parents` page and put it in the table above.
+*(Super-admin is the platform owner's own login — not shared with testers.)*
+
+**Note:** the admin account belongs to a different school than the teacher/parent accounts, so admin actions won't affect what the teacher/parent sees. Test each role's flows independently.
 
 ---
 
-## How testers log in
+## How to log in
 
-1. Go to the **Login page** above.
-2. Enter the email + password from your row in the table.
-3. You are taken to your dashboard automatically — no need to pick a role.
+1. Open the **Login page** above.
+2. Enter your email + password from the table.
+3. You land on your dashboard automatically — no role picker.
 4. **Dark mode:** toggle in the top bar (optional).
-5. **Forgot password?** Click "Forgot password" on the login page → check email →
-   set a new one. (Parents: use the magic link in your invite email instead.)
+5. **Forgot password?** These are test emails without real inboxes — if you lock yourself out, ask the owner to reset the password instead.
 
 ## Notes for testers
 
-- Use a real inbox you control if you were sent an **invite link** (teachers and
-  parents) — the link is single-use and role-specific.
-- A brand-new person who signs in **without** an invite lands on a
-  "Pending approval" screen; a school admin approves them from the Pending tab.
-- Report anything that shows a **blocking error dialog** (it stays until you
-  dismiss it) — copy the message when you report.
+- If anything shows a **blocking error dialog** (stays until you dismiss it), copy the message and report it.
+- A brand-new person who signs in **without** an invite lands on a "Pending approval" screen — that's expected; an admin approves them.
 
 ---
 
-*Full step-by-step QA script for maintainers: see `docs/TESTING.md`.*
+*Full QA script for maintainers: `docs/TESTING.md`.*
