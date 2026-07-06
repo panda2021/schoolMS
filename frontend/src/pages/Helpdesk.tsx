@@ -199,25 +199,34 @@ export default function Helpdesk() {
     if (error) { show(error.message, 'error'); setSending(false); return }
     setReply('')
 
-    if (pendingFile && m?.id && schoolId) {
+    // Attachments live under the TICKET's school, not the sender's — super_admin
+    // support staff have no school_id of their own.
+    const ticketSchool = activeTicket.school_id
+    if (pendingFile && m?.id) {
+      let uploadedPath: string | null = null
       try {
+        if (!ticketSchool) throw new Error('Ticket has no school context')
         const safeName = pendingFile.name.replace(/[^\w.]+/g, '_')
-        const path = `${schoolId}/helpdesk/${userId}/${Date.now()}_${safeName}`
+        const path = `${ticketSchool}/helpdesk/${userId}/${Date.now()}_${safeName}`
         const { error: upErr } = await supabase.storage.from('media').upload(path, pendingFile, {
           upsert: false,
           contentType: pendingFile.type || 'application/octet-stream',
         })
         if (upErr) throw upErr
+        uploadedPath = path
         const { error: mErr } = await supabase.from('media_assets').insert({
           bucket: 'media',
           object_path: path,
-          school_id: schoolId,
+          school_id: ticketSchool,
           mime_type: pendingFile.type || 'application/octet-stream',
           file_size_bytes: pendingFile.size,
+          uploaded_by: userId,
           helpdesk_message_id: m.id,
         })
         if (mErr) throw mErr
       } catch (e: any) {
+        // Don't leave an orphaned storage object if the DB row failed.
+        if (uploadedPath) await supabase.storage.from('media').remove([uploadedPath])
         show('Reply sent, but attachment failed: ' + (e.message || e), 'error')
       }
       setPendingFile(null)

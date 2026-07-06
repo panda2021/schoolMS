@@ -22,10 +22,15 @@ import Helpdesk from '@/pages/Helpdesk'
 import FeatureMatrix from '@/pages/FeatureMatrix'
 import ProtectedLayout from '@/ui/auth/ProtectedLayout'
 import RoleRedirect from '@/ui/auth/RoleRedirect'
+import RequireRole from '@/ui/auth/RequireRole'
 import AdminDashboard from '@/pages/AdminDashboard'
 import TeacherDashboard from '@/pages/TeacherDashboard'
 import ParentDashboard from '@/pages/ParentDashboard'
 import SuperAdminDashboard from '@/pages/SuperAdminDashboard'
+import type { Role } from '@/ui/auth/RoleProvider'
+
+// Any provisioned (non-'pending') role. Shared operational pages allow these.
+const PROVISIONED: Role[] = ['super_admin', 'school_admin', 'teacher', 'parent']
 
 export default function App() {
   return (
@@ -35,30 +40,34 @@ export default function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/reset-password" element={<ResetPassword />} />
 
-      {/* Protected app routes under /app */}
+      {/* Protected app routes under /app.
+          Role home dashboards are gated to their own role; shared operational
+          pages are open to any provisioned role (super_admin/school_admin/
+          teacher/parent) but closed to 'pending' users. RLS + capabilities
+          still gate the data and actions within each page. */}
       <Route path="/app" element={<ProtectedLayout />}>
         <Route index element={<RoleRedirect />} />
-        <Route path="super" element={<SuperAdminDashboard />} />
-        <Route path="features" element={<FeatureMatrix />} />
-        <Route path="admin" element={<AdminDashboard />} />
-        <Route path="teacher" element={<TeacherDashboard />} />
-        <Route path="parent" element={<ParentDashboard />} />
-        <Route path="classes" element={<Classes />} />
-        <Route path="students" element={<Students />} />
-        <Route path="attendance" element={<Attendance />} />
-        <Route path="updates" element={<Updates />} />
-        <Route path="announcements" element={<Announcements />} />
-        <Route path="messages" element={<Messages />} />
-        <Route path="reports" element={<Reports />} />
-        <Route path="grades" element={<Grades />} />
-        <Route path="report-cards" element={<ReportCards />} />
-        <Route path="search" element={<Search />} />
-        <Route path="import" element={<BulkImport />} />
-        <Route path="teachers" element={<Teachers />} />
-        <Route path="parents" element={<Parents />} />
+        <Route path="super" element={<RequireRole allow={['super_admin']}><SuperAdminDashboard /></RequireRole>} />
+        <Route path="features" element={<RequireRole allow={['super_admin']}><FeatureMatrix /></RequireRole>} />
+        <Route path="admin" element={<RequireRole allow={['school_admin', 'super_admin']}><AdminDashboard /></RequireRole>} />
+        <Route path="teacher" element={<RequireRole allow={['teacher']}><TeacherDashboard /></RequireRole>} />
+        <Route path="parent" element={<RequireRole allow={['parent']}><ParentDashboard /></RequireRole>} />
+        <Route path="classes" element={<RequireRole allow={PROVISIONED}><Classes /></RequireRole>} />
+        <Route path="students" element={<RequireRole allow={PROVISIONED}><Students /></RequireRole>} />
+        <Route path="attendance" element={<RequireRole allow={PROVISIONED}><Attendance /></RequireRole>} />
+        <Route path="updates" element={<RequireRole allow={PROVISIONED}><Updates /></RequireRole>} />
+        <Route path="announcements" element={<RequireRole allow={PROVISIONED}><Announcements /></RequireRole>} />
+        <Route path="messages" element={<RequireRole allow={PROVISIONED}><Messages /></RequireRole>} />
+        <Route path="reports" element={<RequireRole allow={PROVISIONED}><Reports /></RequireRole>} />
+        <Route path="grades" element={<RequireRole allow={PROVISIONED}><Grades /></RequireRole>} />
+        <Route path="report-cards" element={<RequireRole allow={PROVISIONED}><ReportCards /></RequireRole>} />
+        <Route path="search" element={<RequireRole allow={PROVISIONED}><Search /></RequireRole>} />
+        <Route path="import" element={<RequireRole allow={PROVISIONED}><BulkImport /></RequireRole>} />
+        <Route path="teachers" element={<RequireRole allow={PROVISIONED}><Teachers /></RequireRole>} />
+        <Route path="parents" element={<RequireRole allow={PROVISIONED}><Parents /></RequireRole>} />
         <Route path="pending" element={<PendingApproval />} />
-        <Route path="helpdesk" element={<Helpdesk />} />
-        <Route path="settings" element={<Settings />} />
+        <Route path="helpdesk" element={<RequireRole allow={PROVISIONED}><Helpdesk /></RequireRole>} />
+        <Route path="settings" element={<RequireRole allow={PROVISIONED}><Settings /></RequireRole>} />
       </Route>
 
       {/* Fallback */}

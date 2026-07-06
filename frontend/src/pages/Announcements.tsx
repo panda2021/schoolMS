@@ -183,7 +183,15 @@ export default function Announcements() {
         parent_id: pid,
       }))
       const { error: recErr } = await supabase.from('announcement_recipients').insert(rows)
-      if (recErr) { show('Announcement posted but failed to set recipients: ' + recErr.message, 'error') }
+      if (recErr) {
+        // A targeted announcement with no recipient rows would be visible
+        // school-wide. Roll it back (soft-delete) and report, rather than
+        // silently over-sharing.
+        await supabase.from('announcements').update({ deleted_at: new Date().toISOString() }).eq('id', ann.id)
+        show('Could not set recipients, so the announcement was not posted: ' + recErr.message, 'error')
+        setSaving(false)
+        return
+      }
     }
 
     show('Announcement posted', 'success')

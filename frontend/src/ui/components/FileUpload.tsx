@@ -56,6 +56,7 @@ export function FileUpload({
     const path = `${schoolId}/${folder}/${uploadedBy}/${Date.now()}_${safeName}`
     setUploading(true)
 
+    let uploaded = false
     try {
       const { error: storageErr } = await supabase.storage
         .from('media')
@@ -64,6 +65,7 @@ export function FileUpload({
           contentType: file.type || 'application/octet-stream',
         })
       if (storageErr) throw storageErr
+      uploaded = true
 
       const assetRow: Record<string, unknown> = {
         bucket: 'media',
@@ -71,6 +73,7 @@ export function FileUpload({
         school_id: schoolId,
         mime_type: file.type || 'application/octet-stream',
         file_size_bytes: file.size,
+        uploaded_by: uploadedBy,
       }
       if (associationField && associationId) {
         assetRow[associationField] = associationId
@@ -90,6 +93,8 @@ export function FileUpload({
       if (inputRef.current) inputRef.current.value = ''
     } catch (err: any) {
       console.error('Upload error:', err)
+      // Don't leave an orphaned storage object if the DB row failed.
+      if (uploaded) await supabase.storage.from('media').remove([path])
       onError(err.message || 'Failed to upload file')
     } finally {
       setUploading(false)

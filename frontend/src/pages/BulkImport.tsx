@@ -25,7 +25,7 @@ export default function BulkImport() {
   const [rows, setRows] = useState<Record<string, string>[]>([])
   const [errors, setErrors] = useState<ValidationError[]>([])
   const [importing, setImporting] = useState(false)
-  const [result, setResult] = useState<{ success: number; failed: number } | null>(null)
+  const [result, setResult] = useState<{ success: number; failed: number; enrollFailed?: number } | null>(null)
   const [dragOver, setDragOver] = useState(false)
 
   useEffect(() => {
@@ -114,7 +114,7 @@ export default function BulkImport() {
     if (!schoolId) return
     setImporting(true)
     setStep('importing')
-    let success = 0, failed = 0
+    let success = 0, failed = 0, enrollFailed = 0
     const batchSize = 50
 
     // Get existing classes for auto-enrollment
@@ -150,11 +150,12 @@ export default function BulkImport() {
         }
       })
       if (enrollments.length > 0) {
-        await supabase.from('enrollments').insert(enrollments)
+        const { error: enrollErr } = await supabase.from('enrollments').insert(enrollments)
+        if (enrollErr) enrollFailed += enrollments.length
       }
     }
 
-    setResult({ success, failed })
+    setResult({ success, failed, enrollFailed })
     setStep('done')
     setImporting(false)
   }
@@ -330,12 +331,17 @@ export default function BulkImport() {
         {/* Done step */}
         {step === 'done' && result && (
           <div style={{ textAlign: 'center', padding: 40 }}>
-            <div style={{ fontSize: 48, marginBottom: 8 }}>{result.failed === 0 ? '✓' : '⚠'}</div>
+            <div style={{ fontSize: 48, marginBottom: 8 }}>{result.failed === 0 && !result.enrollFailed ? '✓' : '⚠'}</div>
             <h3 style={{ margin: '0 0 8px 0' }}>{t('import.complete')}</h3>
             <p>
               <span className="badge badge-success" style={{ marginRight: 8 }}>{result.success} {t('import.imported')}</span>
               {result.failed > 0 && <span className="badge" style={{ color: '#dc2626', background: '#fef2f2', borderColor: '#fecaca' }}>{result.failed} {t('import.failed')}</span>}
             </p>
+            {result.enrollFailed ? (
+              <p style={{ color: '#b45309', marginTop: 4 }}>
+                ⚠ {result.enrollFailed} student(s) imported but could not be auto-enrolled in a class. Enroll them manually from the Students page.
+              </p>
+            ) : null}
             <button className="btn btn-primary" onClick={reset} style={{ marginTop: 12 }}>{t('import.importMore')}</button>
           </div>
         )}

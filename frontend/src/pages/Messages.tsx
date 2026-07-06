@@ -275,6 +275,7 @@ export default function Messages() {
     setNewMsg('')
 
     if (pendingFile && data?.id) {
+      let uploadedPath: string | null = null
       try {
         const safeName = pendingFile.name.replace(/[^\w.]+/g, '_')
         const path = `${schoolId}/messages/${userId}/${Date.now()}_${safeName}`
@@ -283,17 +284,21 @@ export default function Messages() {
           contentType: pendingFile.type || 'application/octet-stream',
         })
         if (upErr) throw upErr
+        uploadedPath = path
         const { error: assetErr } = await supabase.from('media_assets').insert({
           bucket: 'media',
           object_path: path,
           school_id: schoolId,
           mime_type: pendingFile.type || 'application/octet-stream',
           file_size_bytes: pendingFile.size,
+          uploaded_by: userId,
           message_id: data.id,
         })
         if (assetErr) throw assetErr
         show('Message and attachment sent', 'success')
       } catch (e: any) {
+        // Don't leave an orphaned storage object if the DB row failed.
+        if (uploadedPath) await supabase.storage.from('media').remove([uploadedPath])
         show('Message sent, but attachment failed: ' + (e.message || e), 'error')
       }
       setPendingFile(null)

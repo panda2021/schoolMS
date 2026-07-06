@@ -43,6 +43,8 @@ export default function RequireAuth({ children }: { children: JSX.Element }) {
 
   useEffect(() => {
     let cancelled = false
+    let authSub: { subscription: { unsubscribe: () => void } } | null = null
+    let timer: ReturnType<typeof setTimeout> | null = null
     const hasAuthParams = () => {
       const h = new URLSearchParams(window.location.hash.replace(/^#/, ''))
       const q = new URLSearchParams(window.location.search)
@@ -60,22 +62,22 @@ export default function RequireAuth({ children }: { children: JSX.Element }) {
 
     const init = async () => {
       if (hasAuthParams()) {
-        const timer = setTimeout(() => {
+        timer = setTimeout(() => {
           if (!cancelled) setLoading(false)
         }, 5000)
         const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
           if (cancelled) return
           if (session) {
-            clearTimeout(timer)
+            if (timer) clearTimeout(timer)
             finishAuth(session.user.id)
           }
         })
+        authSub = sub
         const { data } = await supabase.auth.getSession()
         if (!cancelled && data.session) {
-          clearTimeout(timer)
+          if (timer) clearTimeout(timer)
           finishAuth(data.session.user.id)
         }
-        return () => { sub.subscription.unsubscribe(); clearTimeout(timer); cancelled = true }
       } else {
         const { data } = await supabase.auth.getSession()
         if (!cancelled) {
@@ -88,8 +90,12 @@ export default function RequireAuth({ children }: { children: JSX.Element }) {
       }
     }
 
-    const cleanup = init()
-    return () => { cancelled = true }
+    init()
+    return () => {
+      cancelled = true
+      if (authSub) authSub.subscription.unsubscribe()
+      if (timer) clearTimeout(timer)
+    }
   }, [])
 
   if (loading) return <div style={{ padding: 24 }}>Loading...</div>
