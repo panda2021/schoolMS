@@ -1,7 +1,37 @@
 # RESUME — ABOGIDA/FIDEL school management app handoff
 
-**Last worked on**: 2026-07-02
+**Last worked on**: 2026-07-06
 **Branch**: `main` (run `git status` before resuming)
+
+## Session snapshot (2026-07-06) — security audit + hardening
+
+Multi-agent audit of the live app (project `jtvjptwmciizqccrpunj`). Fixed and deployed
+(commits `67a09c2`..`00dcf5f`, all pushed; Vercel bundle verified live):
+
+- **0034** — CRITICAL role self-escalation (trigger `guard_user_privilege_columns` blocks
+  `role_key`/`school_id` changes from end-user roles); dropped cross-tenant `schools_*_any`
+  policies (super-admin-only writes); scoped cross-school media DELETE; added super-admin
+  media SELECT; revoked anon EXECUTE on 6 mutating RPCs.
+- **0035** — parent media-attachment privacy leak closed (role-split `media_assets` SELECT;
+  verified a private message attachment is visible to exactly 1 parent, cascades to storage);
+  path-scoped media INSERT; scoped branding SELECT; dropped conflicting announcement policies;
+  fixed `is_in_same_school` NULL-school bug.
+- **0036** — pinned function `search_path` (4 fns); dropped 2 duplicate unique constraints;
+  added 6 hot FK indexes.
+- **Frontend (0039 commit)** — role-based route guards (`RoleProvider`/`RequireRole`),
+  fixed `RequireAuth` onAuthStateChange leak, bulk-import enrollment error surfacing,
+  targeted-announcement rollback on recipient failure, helpdesk super-admin attachments
+  (use ticket school), `uploaded_by` population + storage orphan cleanup in all upload paths.
+- Earlier same day: **0032/0033** fixed branding+media upload RLS (`INSERT..RETURNING` needs
+  a covering SELECT policy).
+
+**Still open (reported, not applied):** enable Auth leaked-password protection (dashboard
+toggle — can't do via SQL); LOW perf items deferred (initplan `auth.uid()` per-row rewrite on
+26 policies, pg_graphql anon exposure, unused-index review after 30d); `classes_select` /
+`parent_students_select` dedup deferred (hygiene, teacher-visibility risk). FeatureProvider
+load-failure still console-only (fails closed).
+
+---
 
 All decisions (D1-D6) locked in memory at `project_personalization_decisions.md`.
 **Also read `docs/PROGRESS.md`** — append-only changelog of every major step.
