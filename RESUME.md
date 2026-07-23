@@ -1,7 +1,27 @@
 # RESUME — ABOGIDA/FIDEL school management app handoff
 
-**Last worked on**: 2026-07-06
+**Last worked on**: 2026-07-23
 **Branch**: `main` (run `git status` before resuming)
+
+## Session snapshot (2026-07-23) — Mailtrap email integration
+
+Switched transactional email from Supabase built-in to Mailtrap. All verified live:
+
+- **`send-email` edge function** deployed (v3) to `jtvjptwmciizqccrpunj` — source at
+  `supabase/functions/send-email/index.ts`. Staff-only gate on `users.role_key`
+  (`super_admin`/`school_admin`/`teacher`), max 50 recipients, Mailtrap Send API backend.
+- **Secrets**: `MAILTRAP_API_TOKEN` set in dashboard; token also in `.env` at project root
+  (gitignored). Sender defaults to Mailtrap demo domain `hello@demomailtrap.co`.
+- **Tests passed 2026-07-23**: positive (school admin → 200, email delivered) and negative
+  (parent → 403, anon no-bearer → 401, anon-key bearer → 401).
+- Ops doc: `instructions.md` > "Transactional email".
+
+**Still open:**
+- Dashboard SMTP config for *auth* emails (invites/resets): `live.smtp.mailtrap.io:587`,
+  user `api`, password = Mailtrap token; then raise auth rate limits. (Eyoel's dashboard task —
+  confirm whether done.)
+- Verify a real owned domain in Mailtrap (vercel.app subdomains can't be sender domains),
+  then update `MAILTRAP_FROM_EMAIL` secret.
 
 ## Session snapshot (2026-07-06) — security audit + hardening
 
